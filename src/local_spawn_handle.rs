@@ -25,7 +25,7 @@ pub trait LocalSpawnHandle<Out: 'static> {
     ) -> Result<JoinHandle<Out>, SpawnError>;
 }
 
-/// Let's you spawn a !Send future and get a [JoinHandle] to await the output of a future.
+/// Let you spawn a !Send future and get a [JoinHandle] to await the output of a future.
 pub trait LocalSpawnHandleExt<Out: 'static>: LocalSpawnHandle<Out> {
     /// Convenience trait for passing in a generic future to [`LocalSpawnHandle`]. Much akin to `LocalSpawn` and `LocalSpawnExt` in the
     /// futures library.
