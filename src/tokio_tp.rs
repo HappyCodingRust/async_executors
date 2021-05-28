@@ -1,13 +1,17 @@
 //! Provides TokioTp executor specific functionality.
 //
-use
-{
-	crate          :: { SpawnHandle, JoinHandle, join_handle::InnerJh     } ,
-	std            :: { sync::{ Arc, atomic::AtomicBool }, future::Future } ,
-	futures_task   :: { FutureObj, Spawn, SpawnError                      } ,
-	tokio::runtime :: { Runtime                                           } ,
+use crate::block_on::BlockOn;
+use crate::YieldNow;
+use futures_util::future::BoxFuture;
+use {
+    crate::{join_handle::InnerJh, JoinHandle, SpawnHandle},
+    futures_task::{FutureObj, Spawn, SpawnError},
+    std::{
+        future::Future,
+        sync::{atomic::AtomicBool, Arc},
+    },
+    tokio::runtime::Runtime,
 };
-
 
 /// An executor that uses [tokio::runtime::Runtime].
 ///
@@ -77,102 +81,89 @@ use
 /// [catch_unwind RFC](https://github.com/rust-lang/rfcs/blob/master/text/1236-stabilize-catch-panic.md)
 /// and it's discussion threads for more info as well as the documentation of [std::panic::UnwindSafe].
 //
-#[ derive( Debug, Clone ) ]
+#[derive(Debug, Clone)]
 //
-#[ cfg_attr( nightly, doc(cfg( feature = "tokio_tp" )) ) ]
+#[cfg_attr(nightly, doc(cfg(feature = "tokio_tp")))]
 //
-pub struct TokioTp
-{
-	pub(crate) exec: Option< Arc<Runtime> >,
+pub struct TokioTp {
+    pub(crate) exec: Option<Arc<Runtime>>,
+}
+impl BlockOn for TokioTp {
+    fn block_on<F: Future>(&self, f: F) -> F::Output {
+        todo!()
+    }
+}
+impl TokioTp {
+    /// See: [tokio::runtime::Runtime::shutdown_timeout]
+    ///
+    ///  This tries to unwrap the Arc<Runtime> we hold, so that works only if no other clones are around. If this is not the
+    ///  only reference, self will be returned to you as an error. It means you cannot shutdown the runtime because there are
+    ///  other clones of the executor still alive.
+    //
+    pub fn shutdown_timeout(mut self, duration: std::time::Duration) -> Result<(), Self> {
+        let arc = self.exec.take().unwrap();
+
+        let rt = match Arc::try_unwrap(arc) {
+            Ok(rt) => rt,
+            Err(arc) => {
+                self.exec = Some(arc);
+                return Err(self);
+            }
+        };
+
+        rt.shutdown_timeout(duration);
+
+        Ok(())
+    }
+
+    /// See: [tokio::runtime::Runtime::shutdown_background]
+    ///
+    ///  This tries to unwrap the Arc<Runtime> we hold, so that works only if no other clones are around. If this is not the
+    ///  only reference, self will be returned to you as an error. It means you cannot shutdown the runtime because there are
+    ///  other clones of the executor still alive.
+    //
+    pub fn shutdown_background(mut self) -> Result<(), Self> {
+        let arc = self.exec.take().unwrap();
+
+        let rt = match Arc::try_unwrap(arc) {
+            Ok(rt) => rt,
+            Err(arc) => {
+                self.exec = Some(arc);
+                return Err(self);
+            }
+        };
+
+        rt.shutdown_background();
+
+        Ok(())
+    }
 }
 
+impl Spawn for TokioTp {
+    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
+        // We drop the JoinHandle, so the task becomes detached.
+        //
+        let _ = self.exec.as_ref().unwrap().spawn(future);
 
-
-impl TokioTp
-{
-	/// Forwards to [Runtime::block_on].
-	//
-	pub fn block_on< F: Future >( &self, f: F ) -> F::Output
-	{
-		self.exec.as_ref().unwrap().block_on( f )
-	}
-
-
-	/// See: [tokio::runtime::Runtime::shutdown_timeout]
-	///
-	///  This tries to unwrap the Arc<Runtime> we hold, so that works only if no other clones are around. If this is not the
-	///  only reference, self will be returned to you as an error. It means you cannot shutdown the runtime because there are
-	///  other clones of the executor still alive.
-	//
-	pub fn shutdown_timeout( mut self, duration: std::time::Duration ) -> Result<(), Self>
-	{
-		let arc = self.exec.take().unwrap();
-
-		let rt  = match Arc::try_unwrap( arc )
-		{
-			Ok(rt) => rt,
-			Err(arc) =>
-			{
-				self.exec = Some(arc);
-				return Err(self);
-			}
-		};
-
-		rt.shutdown_timeout( duration );
-
-		Ok(())
-	}
-
-
-	/// See: [tokio::runtime::Runtime::shutdown_background]
-	///
-	///  This tries to unwrap the Arc<Runtime> we hold, so that works only if no other clones are around. If this is not the
-	///  only reference, self will be returned to you as an error. It means you cannot shutdown the runtime because there are
-	///  other clones of the executor still alive.
-	//
-	pub fn shutdown_background( mut self ) -> Result<(), Self>
-	{
-		let arc = self.exec.take().unwrap();
-
-		let rt  = match Arc::try_unwrap( arc )
-		{
-			Ok(rt) => rt,
-			Err(arc) =>
-			{
-				self.exec = Some(arc);
-				return Err(self);
-			}
-		};
-
-		rt.shutdown_background();
-
-		Ok(())
-	}
+        Ok(())
+    }
 }
 
-
-impl Spawn for TokioTp
-{
-	fn spawn_obj( &self, future: FutureObj<'static, ()> ) -> Result<(), SpawnError>
-	{
-		// We drop the JoinHandle, so the task becomes detached.
-		//
-		let _ = self.exec.as_ref().unwrap().spawn( future );
-
-		Ok(())
-	}
+impl<Out: 'static + Send> SpawnHandle<Out> for TokioTp {
+    fn spawn_handle_obj(
+        &self,
+        future: FutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
+        Ok(JoinHandle {
+            inner: InnerJh::Tokio {
+                handle: self.exec.as_ref().unwrap().spawn(future),
+                detached: AtomicBool::new(false),
+            },
+        })
+    }
 }
-
-
-
-impl<Out: 'static + Send> SpawnHandle<Out> for TokioTp
-{
-	fn spawn_handle_obj( &self, future: FutureObj<'static, Out> ) -> Result<JoinHandle<Out>, SpawnError>
-	{
-		Ok( JoinHandle{ inner: InnerJh::Tokio
-		{
-			handle  : self.exec.as_ref().unwrap().spawn( future ) ,
-			detached: AtomicBool::new( false  ) ,
-		}})
-	}
+impl YieldNow for TokioTp {
+    fn yield_now(&self) -> BoxFuture<()> {
+        Box::pin(tokio::task::yield_now())
+    }
 }

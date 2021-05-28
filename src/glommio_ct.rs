@@ -1,9 +1,11 @@
-use std::future::Future;
-use glommio_crate::{LocalExecutorBuilder};
-use futures_task::{FutureObj, Spawn, SpawnError, LocalSpawn};
-use crate::{SpawnHandle, JoinHandle, InnerJh, LocalSpawnHandle, SpawnHandleExt};
-use futures_util::future::LocalFutureObj;
+use crate::{
+    BlockOn, InnerJh, JoinHandle, LocalSpawnHandle, SpawnHandle, SpawnHandleExt, YieldNow,
+};
+use futures_task::{FutureObj, LocalSpawn, Spawn, SpawnError};
+use futures_util::future::{BoxFuture, LocalFutureObj};
 use futures_util::FutureExt;
+use glommio_crate::{LocalExecutorBuilder, Task};
+use std::future::Future;
 
 /// A simple glommio runtime builder
 #[derive(Debug)]
@@ -15,7 +17,10 @@ pub struct GlommioCtBuilder {
 impl GlommioCtBuilder {
     /// Create a new builder
     pub fn new() -> Self {
-        Self { binding: None, name: "unnamed".to_string() }
+        Self {
+            binding: None,
+            name: "unnamed".to_string(),
+        }
     }
 
     /// Sets the new executor's affinity to the provided CPU.  The largest `cpu`
@@ -33,17 +38,15 @@ impl GlommioCtBuilder {
         }
         builder
     }
-
-    /// block on the given future
-    pub fn block_on<Fut, Out: 'static>(&self, future: Fut) -> Out
-        where Fut: Future<Output=Out>
-    {
-        self.get_builder().make().expect("Cannot make a local executor").run(
-            future
-        )
+}
+impl BlockOn for GlommioCtBuilder {
+    fn block_on<F: Future>(&self, future: F) -> <F as Future>::Output {
+        self.get_builder()
+            .make()
+            .expect("Cannot make a local executor")
+            .run(future)
     }
 }
-
 impl Spawn for GlommioCtBuilder {
     fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         GlommioCt::new().spawn_obj(future)
@@ -51,9 +54,11 @@ impl Spawn for GlommioCtBuilder {
 }
 
 impl<Out: Send + 'static> SpawnHandle<Out> for GlommioCtBuilder {
-    fn spawn_handle_obj(&self, future: FutureObj<'static, Out>) -> Result<JoinHandle<Out>, SpawnError> {
+    fn spawn_handle_obj(
+        &self,
+        future: FutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
         GlommioCt::new().spawn_handle(future)
-
     }
 }
 impl LocalSpawn for GlommioCtBuilder {
@@ -62,13 +67,14 @@ impl LocalSpawn for GlommioCtBuilder {
     }
 }
 
-
 impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioCtBuilder {
-    fn spawn_handle_local_obj(&self, future: LocalFutureObj<'static, Out>) -> Result<JoinHandle<Out>, SpawnError> {
+    fn spawn_handle_local_obj(
+        &self,
+        future: LocalFutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
         GlommioCt::new().spawn_handle_local_obj(future)
     }
 }
-
 
 /// Glommio Local Executor
 #[derive(Debug, Copy, Clone)]
@@ -88,13 +94,15 @@ impl LocalSpawn for GlommioCt {
     }
 }
 
-
 impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioCt {
-    fn spawn_handle_local_obj(&self, future: LocalFutureObj<'static, Out>) -> Result<JoinHandle<Out>, SpawnError> {
+    fn spawn_handle_local_obj(
+        &self,
+        future: LocalFutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
         let (remote, remote_handle) = future.remote_handle();
         let _task = glommio_crate::Task::local(remote).detach();
         Ok(JoinHandle {
-            inner: InnerJh::RemoteHandle(Some(remote_handle))
+            inner: InnerJh::RemoteHandle(Some(remote_handle)),
         })
     }
 }
@@ -104,7 +112,15 @@ impl Spawn for GlommioCt {
     }
 }
 impl<Out: Send + 'static> SpawnHandle<Out> for GlommioCt {
-    fn spawn_handle_obj(&self, future: FutureObj<'static, Out>) -> Result<JoinHandle<Out>, SpawnError> {
+    fn spawn_handle_obj(
+        &self,
+        future: FutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
         self.spawn_handle_local_obj(LocalFutureObj::from(future))
+    }
+}
+impl YieldNow for GlommioCt {
+    fn yield_now<'a>(&'a self) -> BoxFuture<'a, ()> {
+        Box::pin(Task::<()>::yield_if_needed())
     }
 }

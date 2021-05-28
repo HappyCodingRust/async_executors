@@ -1,18 +1,19 @@
-use glommio_crate::{LocalExecutorBuilder};
-use futures_task::{FutureObj, Spawn, SpawnError};
-use crate::{SpawnHandle, JoinHandle, InnerJh};
-use std::ops::Range;
+use crate::{GlommioCt, InnerJh, JoinHandle, LocalSpawnHandle, SpawnHandle, YieldNow};
 use core::iter;
-use crossbeam::deque::Worker;
-use crossbeam::deque::Stealer;
 use crossbeam::deque::Injector;
-use std::sync::{Arc, Mutex};
+use crossbeam::deque::Stealer;
+use crossbeam::deque::Worker;
+use futures_executor::block_on;
+use futures_task::{FutureObj, LocalFutureObj, Spawn, SpawnError};
+use futures_util::future::{BoxFuture, RemoteHandle};
+use futures_util::task::LocalSpawn;
+use futures_util::FutureExt;
+use glommio_crate::{LocalExecutorBuilder, Task};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
-use futures_util::FutureExt;
 use std::future::Future;
-use futures_util::future::RemoteHandle;
-use futures_executor::block_on;
+use std::ops::Range;
+use std::sync::{Arc, Mutex};
 
 /// A simple glommio runtime builder
 #[derive(Debug)]
@@ -33,15 +34,15 @@ impl GlommioTpBuilder {
     }
 
     /// block on the given future
-    pub fn build(&self) -> Result<Arc<GlommioTp>, std::io::Error>
-    {
+    pub fn build(&self) -> Result<Arc<GlommioTp>, std::io::Error> {
         let range = self.pin_to_cpu.clone().unwrap_or(0..self.threads);
         let mut thread_pool = vec![];
         let mut workers = vec![];
         let global_injector = Arc::new(Injector::new());
         let mut dedicated_tx = vec![];
         for (thread, cpu_id) in (0..self.threads).zip(range) {
-            let mut builder = LocalExecutorBuilder::new().name(&format!("{}-{}", self.name, thread));
+            let mut builder =
+                LocalExecutorBuilder::new().name(&format!("{}-{}", self.name, thread));
             if self.pin_to_cpu.is_some() {
                 builder = builder.pin_to_cpu(cpu_id);
             }
@@ -67,8 +68,12 @@ impl GlommioTpBuilder {
         for (t, e) in thread_pool.into_iter().zip(workers.into_iter()) {
             let join_handle = t.spawn(move || async move { e.run().await }).unwrap();
             join_handles.push(join_handle);
-        };
-        Ok(Arc::new(GlommioTp::new(join_handles, global_injector, dedicated_tx)))
+        }
+        Ok(Arc::new(GlommioTp::new(
+            join_handles,
+            global_injector,
+            dedicated_tx,
+        )))
     }
 }
 
@@ -80,8 +85,9 @@ pub struct CustomTask<T> {
 }
 
 impl<Fut, T> From<Fut> for CustomTask<T>
-    where Fut: Future<Output=T> + Send + 'static,
-          T: Send + 'static
+where
+    Fut: Future<Output = T> + Send + 'static,
+    T: Send + 'static,
 {
     fn from(f: Fut) -> Self {
         Self {
@@ -112,12 +118,13 @@ impl ManagedExecutor {
                         // Otherwise, we need to look for a task elsewhere.
                         iter::repeat_with(|| {
                             // Try stealing a batch of tasks from the global queue.
-                            self.global.steal_batch_and_pop(&self.local)
+                            self.global
+                                .steal_batch_and_pop(&self.local)
                                 // Or try stealing a task from one of the other threads.
                                 .or_else(|| self.stealers.iter().map(|s| s.steal()).collect())
                         })
-                            .find(|x| !x.is_retry())
-                            .and_then(|x| x.success())
+                        .find(|x| !x.is_retry())
+                        .and_then(|x| x.success())
                     });
                     if result.is_some() {
                         return result;
@@ -175,7 +182,11 @@ pub struct GlommioTp {
 }
 
 impl GlommioTp {
-    fn new(join_handles: Vec<std::thread::JoinHandle<()>>, global: Arc<Injector<CustomTask<()>>>, dedicated: Vec<crossbeam::channel::Sender<CustomTask<()>>>) -> Self {
+    fn new(
+        join_handles: Vec<std::thread::JoinHandle<()>>,
+        global: Arc<Injector<CustomTask<()>>>,
+        dedicated: Vec<crossbeam::channel::Sender<CustomTask<()>>>,
+    ) -> Self {
         Self {
             join_handles: Mutex::new(join_handles),
             global,
@@ -184,7 +195,10 @@ impl GlommioTp {
     }
 
     /// spawn a custom task
-    pub fn spawn_custom_task<T: Send + 'static>(&self, task: impl Into<CustomTask<T>>) -> Result<RemoteHandle<T>, GlommioError> {
+    pub fn spawn_custom_task<T: Send + 'static>(
+        &self,
+        task: impl Into<CustomTask<T>>,
+    ) -> Result<RemoteHandle<T>, GlommioError> {
         let task = task.into();
         let (remote, handle) = task.future.remote_handle();
 
@@ -226,40 +240,65 @@ impl GlommioTp {
     }
     /// spawn a task and block on it
     pub fn block_on<Fut, Out>(&self, future: Fut) -> Out
-        where Fut: Future<Output=Out> + Send + 'static, Out: Send + 'static {
+    where
+        Fut: Future<Output = Out> + Send + 'static,
+        Out: Send + 'static,
+    {
         let (remote, handle) = future.remote_handle();
-        self.global.push(CustomTask { future: FutureObj::new(remote.boxed()), executor_id: None });
+        self.global.push(CustomTask {
+            future: FutureObj::new(remote.boxed()),
+            executor_id: None,
+        });
         block_on(handle)
     }
 }
 
 impl Spawn for GlommioTp {
     fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
-        self.global.push(CustomTask { future, executor_id: None });
+        self.global.push(CustomTask {
+            future,
+            executor_id: None,
+        });
         Ok(())
     }
 }
 
 impl<Out: Send + 'static> SpawnHandle<Out> for GlommioTp {
-    fn spawn_handle_obj(&self, future: FutureObj<'static, Out>) -> Result<JoinHandle<Out>, SpawnError> {
+    fn spawn_handle_obj(
+        &self,
+        future: FutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
         let (remote, handle) = future.remote_handle();
-        self.global.push(CustomTask { future: FutureObj::new(remote.boxed()), executor_id: None });
-        Ok(JoinHandle { inner: InnerJh::RemoteHandle(Some(handle)) })
+        self.global.push(CustomTask {
+            future: FutureObj::new(remote.boxed()),
+            executor_id: None,
+        });
+        Ok(JoinHandle {
+            inner: InnerJh::RemoteHandle(Some(handle)),
+        })
     }
 }
 
-// impl LocalSpawn for GlommioTp {
-//     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
-//         todo!()
-//     }
-// }
-//
-//
-// impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioTp {
-//     fn spawn_handle_local_obj(&self, future: LocalFutureObj<'static, Out>) -> Result<JoinHandle<Out>, SpawnError> {
-//         todo!()
-//     }
-// }
+impl LocalSpawn for GlommioTp {
+    fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
+        GlommioCt::new().spawn_local_obj(future)
+    }
+}
+
+impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioTp {
+    fn spawn_handle_local_obj(
+        &self,
+        future: LocalFutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
+        GlommioCt::new().spawn_handle_local_obj(future)
+    }
+}
+impl YieldNow for GlommioTp {
+    fn yield_now<'a>(&'a self) -> BoxFuture<'a, ()> {
+        Box::pin(Task::<()>::yield_if_needed())
+    }
+}
+
 fn assert_sync<T: Sync>() {}
 
 #[allow(dead_code)]

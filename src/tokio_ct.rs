@@ -1,11 +1,12 @@
-use
-{
-	crate        :: { SpawnHandle, LocalSpawnHandle, JoinHandle, join_handle::InnerJh } ,
-	std          :: { sync::Arc, future::Future, sync::atomic::AtomicBool             } ,
-	tokio        :: { task::LocalSet, runtime::{  Runtime }                           } ,
-	futures_task :: { FutureObj, LocalFutureObj, Spawn, LocalSpawn, SpawnError        } ,
+use crate::block_on::BlockOn;
+use crate::YieldNow;
+use futures::future::BoxFuture;
+use {
+    crate::{join_handle::InnerJh, JoinHandle, LocalSpawnHandle, SpawnHandle},
+    futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError},
+    std::{future::Future, sync::atomic::AtomicBool, sync::Arc},
+    tokio::{runtime::Runtime, task::LocalSet},
 };
-
 
 /// An executor that uses a [`tokio::runtime::Runtime`] with the [current thread](tokio::runtime::Builder::new_current_thread)
 /// and a [`tokio::task::LocalSet`]. Can spawn `!Send` futures.
@@ -69,105 +70,94 @@ use
 /// for more information.
 ///
 //
-#[ derive( Debug, Clone ) ]
+#[derive(Debug, Clone)]
 //
-#[ cfg_attr( nightly, doc(cfg( feature = "tokio_ct" )) ) ]
+#[cfg_attr(nightly, doc(cfg(feature = "tokio_ct")))]
 //
-pub struct TokioCt
-{
-	pub(crate) exec  : Arc< Runtime  > ,
-	pub(crate) local : Arc< LocalSet > ,
+pub struct TokioCt {
+    pub(crate) exec: Arc<Runtime>,
+    pub(crate) local: Arc<LocalSet>,
 }
 
+impl BlockOn for TokioCt {
+    /// This is the entry point for this executor. Once this call returns, no remaining tasks shall be polled anymore.
+    /// However the tasks stay in the executor, so if you make a second call to `block_on` with a new task, the older
+    /// tasks will start making progress again.
+    ///
+    /// For simplicity, it's advised to just create top level task that you run through `block_on` and make sure your
+    /// program is done when it returns.
+    ///
+    /// See: [tokio::runtime::Runtime::block_on]
+    ///
+    /// ## Panics
+    ///
+    /// This function will panic if it is called from an async context, including but not limited to making a nested
+    /// call. It will also panic if the provided future panics.
+    //
+    fn block_on<F: Future>(&self, f: F) -> F::Output {
+        self.exec.block_on(self.local.run_until(f))
+    }
+}
+impl Spawn for TokioCt {
+    fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
+        // We drop the JoinHandle, so the task becomes detached.
+        //
+        let _ = self.local.spawn_local(future);
 
-
-impl TokioCt
-{
-	/// This is the entry point for this executor. Once this call returns, no remaining tasks shall be polled anymore.
-	/// However the tasks stay in the executor, so if you make a second call to `block_on` with a new task, the older
-	/// tasks will start making progress again.
-	///
-	/// For simplicity, it's advised to just create top level task that you run through `block_on` and make sure your
-	/// program is done when it returns.
-	///
-	/// See: [tokio::runtime::Runtime::block_on]
-	///
-	/// ## Panics
-	///
-	/// This function will panic if it is called from an async context, including but not limited to making a nested
-	/// call. It will also panic if the provided future panics.
-	//
-	pub fn block_on< F: Future >( &self, f: F ) -> F::Output
-	{
-		self.exec.block_on( self.local.run_until( f ) )
-	}
+        Ok(())
+    }
 }
 
+impl LocalSpawn for TokioCt {
+    fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
+        // We drop the JoinHandle, so the task becomes detached.
+        //
+        let _ = self.local.spawn_local(future);
 
-impl Spawn for TokioCt
-{
-	fn spawn_obj( &self, future: FutureObj<'static, ()> ) -> Result<(), SpawnError>
-	{
-		// We drop the JoinHandle, so the task becomes detached.
-		//
-		let _ = self.local.spawn_local( future );
-
-		Ok(())
-	}
+        Ok(())
+    }
 }
 
-
-
-impl LocalSpawn for TokioCt
-{
-	fn spawn_local_obj( &self, future: LocalFutureObj<'static, ()> ) -> Result<(), SpawnError>
-	{
-		// We drop the JoinHandle, so the task becomes detached.
-		//
-		let _ = self.local.spawn_local( future );
-
-		Ok(())
-	}
+impl<Out: 'static + Send> SpawnHandle<Out> for TokioCt {
+    fn spawn_handle_obj(
+        &self,
+        future: FutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
+        Ok(JoinHandle {
+            inner: InnerJh::Tokio {
+                handle: self.exec.spawn(future),
+                detached: AtomicBool::new(false),
+            },
+        })
+    }
 }
 
-
-
-impl<Out: 'static + Send> SpawnHandle<Out> for TokioCt
-{
-	fn spawn_handle_obj( &self, future: FutureObj<'static, Out> ) -> Result<JoinHandle<Out>, SpawnError>
-	{
-		Ok( JoinHandle{ inner: InnerJh::Tokio
-		{
-			handle  : self.exec.spawn( future ) ,
-			detached: AtomicBool::new( false  ) ,
-		}})
-	}
+impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
+    fn spawn_handle_local_obj(
+        &self,
+        future: LocalFutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
+        Ok(JoinHandle {
+            inner: InnerJh::Tokio {
+                handle: self.local.spawn_local(future),
+                detached: AtomicBool::new(false),
+            },
+        })
+    }
 }
 
-
-
-impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt
-{
-	fn spawn_handle_local_obj( &self, future: LocalFutureObj<'static, Out> ) -> Result<JoinHandle<Out>, SpawnError>
-	{
-		Ok( JoinHandle{ inner: InnerJh::Tokio
-		{
-			handle  : self.local.spawn_local( future ) ,
-			detached: AtomicBool::new( false )         ,
-		}})
-
-	}
+impl YieldNow for TokioCt {
+    fn yield_now(&self) -> BoxFuture<()> {
+        Box::pin(tokio::task::yield_now())
+    }
 }
 
-
-
-#[ cfg(test) ]
+#[cfg(test)]
 //
-mod tests
-{
-	use super::*;
+mod tests {
+    use super::*;
 
-	// It's important that this is not Send, as we allow spawning !Send futures on it.
-	//
-	static_assertions::assert_not_impl_any!( TokioCt: Send, Sync );
+    // It's important that this is not Send, as we allow spawning !Send futures on it.
+    //
+    static_assertions::assert_not_impl_any!(TokioCt: Send, Sync);
 }
