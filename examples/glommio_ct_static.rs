@@ -1,4 +1,4 @@
-use async_executors::{GlommioCt, GlommioCtBuilder, SpawnStatic};
+use async_executors::{GlommioCt, SpawnStatic};
 use futures::channel::{oneshot, oneshot::Sender};
 
 fn lib_function<Exec: SpawnStatic>(tx: Sender<&'static str>) {

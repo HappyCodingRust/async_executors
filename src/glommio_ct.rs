@@ -56,29 +56,20 @@ impl LocalSpawnStatic for GlommioCt {
     }
 }
 impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioCt {
-    fn spawn_handle_local_obj(
-        &self,
-        future: LocalFutureObj<'static, Out>,
-    ) -> Result<JoinHandle<Out>, SpawnError> {
-        let (remote, remote_handle) = future.remote_handle();
-        let _task = glommio_crate::Task::local(remote).detach();
-        Ok(JoinHandle {
-            inner: InnerJh::RemoteHandle(Some(remote_handle)),
-        })
+    fn spawn_handle_local_obj(&self, future: LocalFutureObj<'static, Out>) -> Result<JoinHandle<Out>, SpawnError> {
+        GlommioCt::spawn_handle_local(future)
     }
 }
 impl LocalSpawnHandleStatic for GlommioCt {
     fn spawn_handle_local<Fut>(
         future: Fut,
     ) -> Result<JoinHandle<<Fut as Future>::Output>, SpawnError>
-    where
-        Fut: Future + 'static,
-        Fut::Output: 'static,
+        where
+            Fut: Future + 'static,
+            Fut::Output: 'static,
     {
-        let (remote, remote_handle) = future.remote_handle();
-        let _task = glommio_crate::Task::local(remote).detach();
         Ok(JoinHandle {
-            inner: InnerJh::RemoteHandle(Some(remote_handle)),
+            inner: InnerJh::Glommio{ task: Some(glommio_crate::Task::local(future)), handle: None },
         })
     }
 }
@@ -87,6 +78,7 @@ impl Spawn for GlommioCt {
         self.spawn_local_obj(LocalFutureObj::from(future))
     }
 }
+
 impl SpawnStatic for GlommioCt {
     fn spawn<Fut>(future: Fut) -> Result<(), SpawnError>
     where
