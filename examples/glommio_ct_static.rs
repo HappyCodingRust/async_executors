@@ -12,7 +12,7 @@ fn main() {
     // You provide the builder, and async_executors will set the right scheduler.
     // Of course you can set other configuration on the builder before.
     //
-    let exec = GlommioCtBuilder::new();
+    let exec = GlommioCt::new("unnamed", None);
 
     let program = async {
         let (tx, rx) = oneshot::channel();

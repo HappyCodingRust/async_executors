@@ -4,13 +4,13 @@ use crate::{
     YieldNowStatic,
 };
 use futures_util::future::BoxFuture;
+use tokio::time::sleep;
 use {
     crate::{join_handle::InnerJh, JoinHandle, LocalSpawnHandle, SpawnHandle},
     futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError},
     std::{future::Future, sync::atomic::AtomicBool, sync::Arc},
     tokio::{runtime::Runtime, task::LocalSet},
 };
-
 /// An executor that uses a [`tokio::runtime::Runtime`] with the [current thread](tokio::runtime::Builder::new_current_thread)
 /// and a [`tokio::task::LocalSet`]. Can spawn `!Send` futures.
 ///

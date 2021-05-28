@@ -284,7 +284,7 @@ impl<Out: Send + 'static> SpawnHandle<Out> for GlommioTp {
 
 impl LocalSpawn for GlommioTp {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
-        GlommioCt::new().spawn_local_obj(future)
+        GlommioCt::spawn_local(future)
     }
 }
 impl LocalSpawnStatic for GlommioTp {
@@ -301,7 +301,7 @@ impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioTp {
         &self,
         future: LocalFutureObj<'static, Out>,
     ) -> Result<JoinHandle<Out>, SpawnError> {
-        GlommioCt::new().spawn_handle_local_obj(future)
+        GlommioCt::spawn_handle_local(future)
     }
 }
 impl LocalSpawnHandleStatic for GlommioTp {
