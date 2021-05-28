@@ -276,9 +276,7 @@ impl<Out: Send + 'static> SpawnHandle<Out> for GlommioTp {
             future: FutureObj::new(remote.boxed()),
             executor_id: None,
         });
-        Ok(JoinHandle {
-            inner: InnerJh::RemoteHandle(Some(handle)),
-        })
+        Ok(JoinHandle::new(InnerJh::RemoteHandle(Some(handle))))
     }
 }
 

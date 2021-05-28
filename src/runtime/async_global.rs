@@ -3,6 +3,7 @@ use
 	crate        :: { SpawnHandle, LocalSpawnHandle, JoinHandle                } ,
 	futures_task :: { FutureObj, LocalFutureObj, Spawn, LocalSpawn, SpawnError } ,
 };
+use crate::InnerJh;
 
 
 /// An executor that spawns tasks on async-global-executor. In contrast to the other executors, this one
@@ -77,10 +78,10 @@ impl<Out: 'static + Send> SpawnHandle<Out> for AsyncGlobal
 {
 	fn spawn_handle_obj( &self, future: FutureObj<'static, Out> ) -> Result<JoinHandle<Out>, SpawnError>
 	{
-		Ok( JoinHandle{ inner: crate::join_handle::InnerJh::AsyncGlobal
+		Ok( JoinHandle::new(InnerJh::AsyncGlobal
 		{
 			task: Some( async_global_executor::spawn(future) ),
-		}})
+		}))
 	}
 }
 
@@ -92,10 +93,10 @@ impl<Out: 'static + Send> SpawnHandle<Out> for AsyncGlobal
 {
 	fn spawn_handle_obj( &self, future: FutureObj<'static, Out> ) -> Result<JoinHandle<Out>, SpawnError>
 	{
-		Ok( JoinHandle{ inner: crate::join_handle::InnerJh::AsyncGlobal
+		Ok( JoinHandle::new(InnerJh::AsyncGlobal
 		{
 			task: Some( async_global_executor::spawn_local(future) ),
-		}})
+		}))
 	}
 }
 
@@ -105,10 +106,10 @@ impl<Out: 'static> LocalSpawnHandle<Out> for AsyncGlobal
 {
 	fn spawn_handle_local_obj( &self, future: LocalFutureObj<'static, Out> ) -> Result<JoinHandle<Out>, SpawnError>
 	{
-		Ok( JoinHandle{ inner: crate::join_handle::InnerJh::AsyncGlobal
+		Ok( JoinHandle::new(InnerJh::AsyncGlobal
 		{
 			task: Some( async_global_executor::spawn_local(future) ),
-		}})
+		}))
 	}
 }
 

@@ -55,8 +55,15 @@ pub trait AsyncJoinHandle: Future {
 //
 #[ must_use = "JoinHandle will cancel your future when dropped." ]
 //
-pub struct JoinHandle<T> { pub(crate) inner: InnerJh<T> }
+pub struct JoinHandle<T> { inner: InnerJh<T> }
 
+impl<T> JoinHandle<T> {
+	pub(crate) fn new(inner: InnerJh<T>) -> Self {
+		Self {
+			inner
+		}
+	}
+}
 
 impl<T: 'static> AsyncJoinHandle for JoinHandle<T> {
 	fn detach(self) {
@@ -242,4 +249,15 @@ impl<T> Drop for JoinHandle<T>
 			InnerJh::RemoteHandle( _ ) => {},
 		};
 	}
+}
+
+
+#[cfg(test)]
+//
+mod tests {
+	use super::*;
+
+	// It's important that this is not Send, as we allow spawning !Send futures on it.
+	//
+	static_assertions::assert_impl_all!(JoinHandle<()>: Send);
 }

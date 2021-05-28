@@ -1,7 +1,4 @@
-use crate::{BlockOn,
-            LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic,
-            YieldNowStatic,
-};
+use crate::{BlockOn, LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic, YieldNowStatic, SpawnBlocking};
 use futures_util::future::BoxFuture;
 
 use {
@@ -154,12 +151,10 @@ impl<Out: 'static + Send> SpawnHandle<Out> for TokioCt {
         &self,
         future: FutureObj<'static, Out>,
     ) -> Result<JoinHandle<Out>, SpawnError> {
-        Ok(JoinHandle {
-            inner: InnerJh::Tokio {
-                handle: self.exec.spawn(future),
-                detached: AtomicBool::new(false),
-            },
-        })
+        Ok(JoinHandle::new(InnerJh::Tokio {
+            handle: self.exec.spawn(future),
+            detached: AtomicBool::new(false),
+        }))
     }
 }
 
@@ -169,12 +164,10 @@ impl SpawnHandleStatic for TokioCt {
             Fut: Future + Send + 'static,
             Fut::Output: 'static + Send,
     {
-        Ok(JoinHandle {
-            inner: InnerJh::Tokio {
-                handle: tokio::task::spawn(future),
-                detached: AtomicBool::new(false),
-            },
-        })
+        Ok(JoinHandle::new(InnerJh::Tokio {
+            handle: tokio::task::spawn(future),
+            detached: AtomicBool::new(false),
+        }))
     }
 }
 
@@ -183,12 +176,10 @@ impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
         &self,
         future: LocalFutureObj<'static, Out>,
     ) -> Result<JoinHandle<Out>, SpawnError> {
-        Ok(JoinHandle {
-            inner: InnerJh::Tokio {
-                handle: self.local.spawn_local(future),
-                detached: AtomicBool::new(false),
-            },
-        })
+        Ok(JoinHandle::new(InnerJh::Tokio {
+            handle: self.local.spawn_local(future),
+            detached: AtomicBool::new(false),
+        }))
     }
 }
 
@@ -198,12 +189,10 @@ impl LocalSpawnHandleStatic for TokioCt {
             Fut: Future + 'static,
             Fut::Output: 'static,
     {
-        Ok(JoinHandle {
-            inner: InnerJh::Tokio {
-                handle: tokio::task::spawn_local(future),
-                detached: AtomicBool::new(false),
-            },
-        })
+        Ok(JoinHandle::new(InnerJh::Tokio {
+            handle: tokio::task::spawn_local(future),
+            detached: AtomicBool::new(false),
+        }))
     }
 }
 
@@ -212,6 +201,13 @@ impl YieldNowStatic for TokioCt {
         Box::pin(tokio::task::yield_now())
     }
 }
+impl<T: Send + 'static> SpawnBlocking<T> for TokioCt {
+    fn spawn_blocking_obj(&self, func: Box<dyn FnOnce() -> T + Send>) -> Result<JoinHandle<T>, SpawnError> {
+        let handle = self.exec.spawn_blocking(func);
+        Ok(JoinHandle::new(InnerJh::Tokio { handle, detached: Default::default() }))
+    }
+}
+
 
 #[cfg(test)]
 //

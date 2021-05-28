@@ -166,9 +166,7 @@ impl<Out: 'static + Send> SpawnHandle<Out> for crate::LocalSpawner {
 
         self.spawn(fut)?;
 
-        Ok(JoinHandle {
-            inner: crate::join_handle::InnerJh::RemoteHandle(Some(handle)),
-        })
+        Ok(JoinHandle::new(crate::InnerJh::RemoteHandle(Some(handle))))
     }
 }
 
@@ -183,9 +181,7 @@ impl<Out: 'static + Send> SpawnHandle<Out> for crate::ThreadPool {
 
         self.spawn(fut)?;
 
-        Ok(JoinHandle {
-            inner: crate::join_handle::InnerJh::RemoteHandle(Some(handle)),
-        })
+        Ok(JoinHandle::new(crate::InnerJh::RemoteHandle(Some(handle))))
     }
 }
 

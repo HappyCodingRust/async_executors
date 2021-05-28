@@ -124,9 +124,7 @@ impl<Out: 'static> LocalSpawnHandle<Out> for crate::LocalSpawner {
 
         self.spawn_local(fut)?;
 
-        Ok(JoinHandle {
-            inner: crate::join_handle::InnerJh::RemoteHandle(Some(handle)),
-        })
+        Ok(JoinHandle::new(crate::InnerJh::RemoteHandle(Some(handle))))
     }
 }
 

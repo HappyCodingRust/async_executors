@@ -66,9 +66,7 @@ impl LocalSpawnHandleStatic for GlommioCt {
             Fut: Future + 'static,
             Fut::Output: 'static,
     {
-        Ok(JoinHandle {
-            inner: InnerJh::Glommio{ task: Some(glommio_crate::Task::local(future)) },
-        })
+        Ok(JoinHandle::new(InnerJh::Glommio{ task: Some(glommio_crate::Task::local(future)) }))
     }
 }
 impl Spawn for GlommioCt {
@@ -101,9 +99,7 @@ impl SpawnHandleStatic for GlommioCt {
         Fut: Future + Send + 'static,
         Fut::Output: 'static + Send,
     {
-        Ok(JoinHandle {
-            inner: InnerJh::Glommio{task: Some(Task::local(future))},
-        })
+        Ok(JoinHandle::new(InnerJh::Glommio{task: Some(Task::local(future))}))
     }
 }
 impl YieldNowStatic for GlommioCt {
@@ -134,5 +130,5 @@ mod tests {
 
     // It's important that this is not Send, as we allow spawning !Send futures on it.
     //
-    static_assertions::assert_not_impl_any!(Glommio: Send, Sync);
+    static_assertions::assert_not_impl_any!(GlommioCt: Send, Sync);
 }
