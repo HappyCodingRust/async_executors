@@ -1,4 +1,7 @@
-use crate::{GlommioCt, InnerJh, JoinHandle, LocalSpawnHandle, SpawnHandle, YieldNow};
+use crate::{
+    GlommioCt, InnerJh, JoinHandle, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic,
+    SpawnHandle, YieldNow,
+};
 use core::iter;
 use crossbeam::deque::Injector;
 use crossbeam::deque::Stealer;
@@ -239,10 +242,10 @@ impl GlommioTp {
         }
     }
     /// spawn a task and block on it
-    pub fn block_on<Fut, Out>(&self, future: Fut) -> Out
+    pub fn block_on<Fut>(&self, future: Fut) -> Fut::Output
     where
-        Fut: Future<Output = Out> + Send + 'static,
-        Out: Send + 'static,
+        Fut: Future + Send + 'static,
+        Fut::Output: Send + 'static,
     {
         let (remote, handle) = future.remote_handle();
         self.global.push(CustomTask {
@@ -284,13 +287,32 @@ impl LocalSpawn for GlommioTp {
         GlommioCt::new().spawn_local_obj(future)
     }
 }
-
+impl LocalSpawnStatic for GlommioTp {
+    fn spawn_local<Fut>(future: Fut) -> Result<(), SpawnError>
+    where
+        Fut: Future + 'static,
+        Fut::Output: 'static,
+    {
+        GlommioCt::spawn_local(future)
+    }
+}
 impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioTp {
     fn spawn_handle_local_obj(
         &self,
         future: LocalFutureObj<'static, Out>,
     ) -> Result<JoinHandle<Out>, SpawnError> {
         GlommioCt::new().spawn_handle_local_obj(future)
+    }
+}
+impl LocalSpawnHandleStatic for GlommioTp {
+    fn spawn_handle_local<Fut>(
+        future: Fut,
+    ) -> Result<JoinHandle<<Fut as Future>::Output>, SpawnError>
+    where
+        Fut: Future + 'static,
+        Fut::Output: 'static,
+    {
+        GlommioCt::spawn_handle_local(future)
     }
 }
 impl YieldNow for GlommioTp {

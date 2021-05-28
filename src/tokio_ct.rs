@@ -1,6 +1,6 @@
 use crate::block_on::BlockOn;
-use crate::YieldNow;
-use futures::future::BoxFuture;
+use crate::{LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic, YieldNow};
+use futures_util::future::BoxFuture;
 use {
     crate::{join_handle::InnerJh, JoinHandle, LocalSpawnHandle, SpawnHandle},
     futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError},
@@ -20,7 +20,7 @@ use {
 /// //
 /// use
 /// {
-///    async_executors :: { TokioCt, TokioCtBuilder, LocalSpawnHandleExt } ,
+///    async_executors :: { TokioCt, TokioCtBuilder, LocalSpawnHandleExt, BlockOn } ,
 ///    tokio           :: { runtime::Builder                             } ,
 ///    std             :: { rc::Rc                                       } ,
 /// };
@@ -78,8 +78,7 @@ pub struct TokioCt {
     pub(crate) exec: Arc<Runtime>,
     pub(crate) local: Arc<LocalSet>,
 }
-
-impl BlockOn for TokioCt {
+impl TokioCt {
     /// This is the entry point for this executor. Once this call returns, no remaining tasks shall be polled anymore.
     /// However the tasks stay in the executor, so if you make a second call to `block_on` with a new task, the older
     /// tasks will start making progress again.
@@ -93,9 +92,13 @@ impl BlockOn for TokioCt {
     ///
     /// This function will panic if it is called from an async context, including but not limited to making a nested
     /// call. It will also panic if the provided future panics.
-    //
-    fn block_on<F: Future>(&self, f: F) -> F::Output {
+    pub fn block_on<F: Future>(&self, f: F) -> F::Output {
         self.exec.block_on(self.local.run_until(f))
+    }
+}
+impl BlockOn for TokioCt {
+    fn block_on<F: Future>(&self, f: F) -> F::Output {
+        Self::block_on(self, f)
     }
 }
 impl Spawn for TokioCt {
@@ -107,13 +110,32 @@ impl Spawn for TokioCt {
         Ok(())
     }
 }
-
+impl SpawnStatic for TokioCt {
+    fn spawn<Fut>(future: Fut) -> Result<(), SpawnError>
+    where
+        Fut: Future + Send + 'static,
+        Fut::Output: Send + 'static,
+    {
+        let _ = tokio::task::spawn(future);
+        Ok(())
+    }
+}
 impl LocalSpawn for TokioCt {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         // We drop the JoinHandle, so the task becomes detached.
         //
         let _ = self.local.spawn_local(future);
 
+        Ok(())
+    }
+}
+impl LocalSpawnStatic for TokioCt {
+    fn spawn_local<Fut>(future: Fut) -> Result<(), SpawnError>
+    where
+        Fut: Future + 'static,
+        Fut::Output: 'static,
+    {
+        let _ = tokio::task::spawn_local(future);
         Ok(())
     }
 }
@@ -131,7 +153,20 @@ impl<Out: 'static + Send> SpawnHandle<Out> for TokioCt {
         })
     }
 }
-
+impl SpawnHandleStatic for TokioCt {
+    fn spawn_handle<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
+    where
+        Fut: Future + Send + 'static,
+        Fut::Output: 'static + Send,
+    {
+        Ok(JoinHandle {
+            inner: InnerJh::Tokio {
+                handle: tokio::task::spawn(future),
+                detached: AtomicBool::new(false),
+            },
+        })
+    }
+}
 impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
     fn spawn_handle_local_obj(
         &self,
@@ -145,9 +180,23 @@ impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
         })
     }
 }
+impl LocalSpawnHandleStatic for TokioCt {
+    fn spawn_handle_local<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
+    where
+        Fut: Future + 'static,
+        Fut::Output: 'static,
+    {
+        Ok(JoinHandle {
+            inner: InnerJh::Tokio {
+                handle: tokio::task::spawn_local(future),
+                detached: AtomicBool::new(false),
+            },
+        })
+    }
+}
 
 impl YieldNow for TokioCt {
-    fn yield_now(&self) -> BoxFuture<()> {
+    fn yield_now<'a>(&'a self) -> BoxFuture<'a, ()> {
         Box::pin(tokio::task::yield_now())
     }
 }

@@ -1,7 +1,9 @@
 //! Provides TokioTp executor specific functionality.
 //
 use crate::block_on::BlockOn;
-use crate::YieldNow;
+use crate::{
+    LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic, TokioCt, YieldNow,
+};
 use futures_util::future::BoxFuture;
 use {
     crate::{join_handle::InnerJh, JoinHandle, SpawnHandle},
@@ -88,9 +90,14 @@ use {
 pub struct TokioTp {
     pub(crate) exec: Option<Arc<Runtime>>,
 }
+impl TokioTp {
+    pub fn block_on<F: Future>(&self, f: F) -> F::Output {
+        self.exec.as_ref().unwrap().block_on(f)
+    }
+}
 impl BlockOn for TokioTp {
     fn block_on<F: Future>(&self, f: F) -> F::Output {
-        todo!()
+        Self::block_on(self, f)
     }
 }
 impl TokioTp {
@@ -148,7 +155,16 @@ impl Spawn for TokioTp {
         Ok(())
     }
 }
-
+impl SpawnStatic for TokioTp {
+    fn spawn<Fut>(future: Fut) -> Result<(), SpawnError>
+    where
+        Fut: Future + Send + 'static,
+        Fut::Output: Send + 'static,
+    {
+        let _ = tokio::task::spawn(future);
+        Ok(())
+    }
+}
 impl<Out: 'static + Send> SpawnHandle<Out> for TokioTp {
     fn spawn_handle_obj(
         &self,
@@ -157,6 +173,46 @@ impl<Out: 'static + Send> SpawnHandle<Out> for TokioTp {
         Ok(JoinHandle {
             inner: InnerJh::Tokio {
                 handle: self.exec.as_ref().unwrap().spawn(future),
+                detached: AtomicBool::new(false),
+            },
+        })
+    }
+}
+
+impl LocalSpawnStatic for TokioTp {
+    fn spawn_local<Fut>(future: Fut) -> Result<(), SpawnError>
+    where
+        Fut: Future + 'static,
+        Fut::Output: 'static,
+    {
+        let _ = tokio::task::spawn_local(future);
+        Ok(())
+    }
+}
+
+impl SpawnHandleStatic for TokioTp {
+    fn spawn_handle<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
+    where
+        Fut: Future + Send + 'static,
+        Fut::Output: 'static + Send,
+    {
+        Ok(JoinHandle {
+            inner: InnerJh::Tokio {
+                handle: tokio::task::spawn(future),
+                detached: AtomicBool::new(false),
+            },
+        })
+    }
+}
+impl LocalSpawnHandleStatic for TokioTp {
+    fn spawn_handle_local<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
+    where
+        Fut: Future + 'static,
+        Fut::Output: 'static,
+    {
+        Ok(JoinHandle {
+            inner: InnerJh::Tokio {
+                handle: tokio::task::spawn_local(future),
                 detached: AtomicBool::new(false),
             },
         })

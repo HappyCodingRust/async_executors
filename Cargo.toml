@@ -109,6 +109,11 @@ path = "examples/glommio_ct.rs"
 required-features = ["notwasm", "glommio"]
 
 [[example]]
+name = "glommio_ct_static"
+path = "examples/glommio_ct_static.rs"
+required-features = ["notwasm", "glommio"]
+
+[[example]]
 name = "glommio_tp"
 path = "examples/glommio_tp.rs"
 required-features = ["notwasm", "glommio"]
