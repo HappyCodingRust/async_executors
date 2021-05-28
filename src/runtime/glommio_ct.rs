@@ -126,3 +126,13 @@ impl<T> AsyncJoinHandle for GlommioJoinHandle<T> {
         self.task.take().map(|x| x.detach());
     }
 }
+
+#[cfg(test)]
+//
+mod tests {
+    use super::*;
+
+    // It's important that this is not Send, as we allow spawning !Send futures on it.
+    //
+    static_assertions::assert_not_impl_any!(Glommio: Send, Sync);
+}

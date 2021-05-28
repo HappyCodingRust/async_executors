@@ -21,6 +21,10 @@ optional = true
 package = "async-std"
 version = "^1.6"
 
+[dependencies.crossbeam]
+optional = true
+version = "^0.8"
+
 [dependencies.futures-executor]
 optional = true
 version = "^0.3"
@@ -119,7 +123,7 @@ async_global = ["async-global-executor"]
 async_std = ["async_std_crate"]
 bindgen = ["wasm-bindgen-futures"]
 default = ["notwasm"]
-glommio = ["glommio_crate"]
+glommio = ["glommio_crate", "crossbeam", "futures-executor"]
 localpool = ["futures-executor"]
 notwasm = []
 threadpool = ["futures-executor/thread-pool"]

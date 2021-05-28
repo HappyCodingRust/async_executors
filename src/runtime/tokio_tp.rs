@@ -1,13 +1,13 @@
 //! Provides TokioTp executor specific functionality.
 //
-use crate::block_on::BlockOn;
+use crate::BlockOn;
 use crate::{
-    LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic, TokioCt, YieldNow,
+    LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic,
     YieldNowStatic,
 };
 use futures_util::future::BoxFuture;
 use {
-    crate::{join_handle::InnerJh, JoinHandle, SpawnHandle},
+    crate::{InnerJh, JoinHandle, SpawnHandle},
     futures_task::{FutureObj, Spawn, SpawnError},
     std::{
         future::Future,
@@ -91,16 +91,20 @@ use {
 pub struct TokioTp {
     pub(crate) exec: Option<Arc<Runtime>>,
 }
+
 impl TokioTp {
+    /// Start the thread pool and run until completion
     pub fn block_on<F: Future>(&self, f: F) -> F::Output {
         self.exec.as_ref().unwrap().block_on(f)
     }
 }
+
 impl BlockOn for TokioTp {
     fn block_on<F: Future>(&self, f: F) -> F::Output {
         Self::block_on(self, f)
     }
 }
+
 impl TokioTp {
     /// See: [tokio::runtime::Runtime::shutdown_timeout]
     ///
@@ -156,16 +160,18 @@ impl Spawn for TokioTp {
         Ok(())
     }
 }
+
 impl SpawnStatic for TokioTp {
     fn spawn<Fut>(future: Fut) -> Result<(), SpawnError>
-    where
-        Fut: Future + Send + 'static,
-        Fut::Output: Send + 'static,
+        where
+            Fut: Future + Send + 'static,
+            Fut::Output: Send + 'static,
     {
         let _ = tokio::task::spawn(future);
         Ok(())
     }
 }
+
 impl<Out: 'static + Send> SpawnHandle<Out> for TokioTp {
     fn spawn_handle_obj(
         &self,
@@ -182,9 +188,9 @@ impl<Out: 'static + Send> SpawnHandle<Out> for TokioTp {
 
 impl LocalSpawnStatic for TokioTp {
     fn spawn_local<Fut>(future: Fut) -> Result<(), SpawnError>
-    where
-        Fut: Future + 'static,
-        Fut::Output: 'static,
+        where
+            Fut: Future + 'static,
+            Fut::Output: 'static,
     {
         let _ = tokio::task::spawn_local(future);
         Ok(())
@@ -193,9 +199,9 @@ impl LocalSpawnStatic for TokioTp {
 
 impl SpawnHandleStatic for TokioTp {
     fn spawn_handle<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
-    where
-        Fut: Future + Send + 'static,
-        Fut::Output: 'static + Send,
+        where
+            Fut: Future + Send + 'static,
+            Fut::Output: 'static + Send,
     {
         Ok(JoinHandle {
             inner: InnerJh::Tokio {
@@ -205,11 +211,12 @@ impl SpawnHandleStatic for TokioTp {
         })
     }
 }
+
 impl LocalSpawnHandleStatic for TokioTp {
     fn spawn_handle_local<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
-    where
-        Fut: Future + 'static,
-        Fut::Output: 'static,
+        where
+            Fut: Future + 'static,
+            Fut::Output: 'static,
     {
         Ok(JoinHandle {
             inner: InnerJh::Tokio {
@@ -219,6 +226,7 @@ impl LocalSpawnHandleStatic for TokioTp {
         })
     }
 }
+
 impl YieldNowStatic for TokioTp {
     fn yield_now() -> BoxFuture<'static, ()> {
         Box::pin(tokio::task::yield_now())

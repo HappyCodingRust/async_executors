@@ -320,10 +320,3 @@ impl YieldNowStatic for GlommioTp {
         Box::pin(Task::<()>::yield_if_needed())
     }
 }
-
-fn assert_sync<T: Sync>() {}
-
-#[allow(dead_code)]
-fn check_asserts() {
-    assert_sync::<GlommioTp>();
-}

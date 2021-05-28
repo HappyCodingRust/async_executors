@@ -1,5 +1,4 @@
 /// reexport futures_task::Spawn etc
-#[allow(unreachable_pub)] // due to https://github.com/rust-lang/rust/issues/64762
 pub use futures_task::{LocalSpawn, Spawn};
 
 use futures_task::SpawnError;

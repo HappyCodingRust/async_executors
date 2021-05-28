@@ -1,16 +1,16 @@
-use crate::block_on::BlockOn;
-use crate::{
-    LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic, YieldNow,
-    YieldNowStatic,
+use crate::{BlockOn,
+            LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic,
+            YieldNowStatic,
 };
 use futures_util::future::BoxFuture;
-use tokio::time::sleep;
+
 use {
-    crate::{join_handle::InnerJh, JoinHandle, LocalSpawnHandle, SpawnHandle},
+    crate::{InnerJh, JoinHandle, LocalSpawnHandle, SpawnHandle},
     futures_task::{FutureObj, LocalFutureObj, LocalSpawn, Spawn, SpawnError},
     std::{future::Future, sync::atomic::AtomicBool, sync::Arc},
     tokio::{runtime::Runtime, task::LocalSet},
 };
+
 /// An executor that uses a [`tokio::runtime::Runtime`] with the [current thread](tokio::runtime::Builder::new_current_thread)
 /// and a [`tokio::task::LocalSet`]. Can spawn `!Send` futures.
 ///
@@ -81,6 +81,7 @@ pub struct TokioCt {
     pub(crate) exec: Arc<Runtime>,
     pub(crate) local: Arc<LocalSet>,
 }
+
 impl TokioCt {
     /// This is the entry point for this executor. Once this call returns, no remaining tasks shall be polled anymore.
     /// However the tasks stay in the executor, so if you make a second call to `block_on` with a new task, the older
@@ -99,11 +100,13 @@ impl TokioCt {
         self.exec.block_on(self.local.run_until(f))
     }
 }
+
 impl BlockOn for TokioCt {
     fn block_on<F: Future>(&self, f: F) -> F::Output {
         Self::block_on(self, f)
     }
 }
+
 impl Spawn for TokioCt {
     fn spawn_obj(&self, future: FutureObj<'static, ()>) -> Result<(), SpawnError> {
         // We drop the JoinHandle, so the task becomes detached.
@@ -113,16 +116,18 @@ impl Spawn for TokioCt {
         Ok(())
     }
 }
+
 impl SpawnStatic for TokioCt {
     fn spawn<Fut>(future: Fut) -> Result<(), SpawnError>
-    where
-        Fut: Future + Send + 'static,
-        Fut::Output: Send + 'static,
+        where
+            Fut: Future + Send + 'static,
+            Fut::Output: Send + 'static,
     {
         let _ = tokio::task::spawn(future);
         Ok(())
     }
 }
+
 impl LocalSpawn for TokioCt {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         // We drop the JoinHandle, so the task becomes detached.
@@ -132,11 +137,12 @@ impl LocalSpawn for TokioCt {
         Ok(())
     }
 }
+
 impl LocalSpawnStatic for TokioCt {
     fn spawn_local<Fut>(future: Fut) -> Result<(), SpawnError>
-    where
-        Fut: Future + 'static,
-        Fut::Output: 'static,
+        where
+            Fut: Future + 'static,
+            Fut::Output: 'static,
     {
         let _ = tokio::task::spawn_local(future);
         Ok(())
@@ -156,11 +162,12 @@ impl<Out: 'static + Send> SpawnHandle<Out> for TokioCt {
         })
     }
 }
+
 impl SpawnHandleStatic for TokioCt {
     fn spawn_handle<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
-    where
-        Fut: Future + Send + 'static,
-        Fut::Output: 'static + Send,
+        where
+            Fut: Future + Send + 'static,
+            Fut::Output: 'static + Send,
     {
         Ok(JoinHandle {
             inner: InnerJh::Tokio {
@@ -170,6 +177,7 @@ impl SpawnHandleStatic for TokioCt {
         })
     }
 }
+
 impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
     fn spawn_handle_local_obj(
         &self,
@@ -183,11 +191,12 @@ impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
         })
     }
 }
+
 impl LocalSpawnHandleStatic for TokioCt {
     fn spawn_handle_local<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
-    where
-        Fut: Future + 'static,
-        Fut::Output: 'static,
+        where
+            Fut: Future + 'static,
+            Fut::Output: 'static,
     {
         Ok(JoinHandle {
             inner: InnerJh::Tokio {
