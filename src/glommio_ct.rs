@@ -1,13 +1,11 @@
-use crate::{
-    BlockOn, InnerJh, JoinHandle, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic,
-    SpawnHandle, SpawnHandleStatic, SpawnStatic, YieldNowStatic,
-};
+use crate::{BlockOn, InnerJh, JoinHandle, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandle, SpawnHandleStatic, SpawnStatic, YieldNowStatic, AsyncJoinHandle};
 use futures_task::{FutureObj, LocalSpawn, Spawn, SpawnError};
 use futures_util::future::{BoxFuture, LocalFutureObj};
-use futures_util::FutureExt;
 use glommio_crate::{LocalExecutor, LocalExecutorBuilder, Task};
 use std::future::Future;
 use std::rc::Rc;
+use std::task::{Context, Poll};
+use std::pin::Pin;
 
 /// A simple glommio runtime builder
 #[derive(Debug)]
@@ -69,7 +67,7 @@ impl LocalSpawnHandleStatic for GlommioCt {
             Fut::Output: 'static,
     {
         Ok(JoinHandle {
-            inner: InnerJh::Glommio{ task: Some(glommio_crate::Task::local(future)), handle: None },
+            inner: InnerJh::Glommio{ task: Some(glommio_crate::Task::local(future)) },
         })
     }
 }
@@ -103,15 +101,28 @@ impl SpawnHandleStatic for GlommioCt {
         Fut: Future + Send + 'static,
         Fut::Output: 'static + Send,
     {
-        let (remote, remote_handle) = future.remote_handle();
-        let _task = glommio_crate::Task::local(remote).detach();
         Ok(JoinHandle {
-            inner: InnerJh::RemoteHandle(Some(remote_handle)),
+            inner: InnerJh::Glommio{task: Some(Task::local(future))},
         })
     }
 }
 impl YieldNowStatic for GlommioCt {
     fn yield_now() -> BoxFuture<'static, ()> {
         Box::pin(Task::<()>::yield_if_needed())
+    }
+}
+struct GlommioJoinHandle<T> {
+    task: Option<Task<T>>
+}
+impl<T> Future for GlommioJoinHandle<T> {
+    type Output = T;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(self.task.as_mut().unwrap()).poll(cx)
+    }
+}
+impl<T> AsyncJoinHandle for GlommioJoinHandle<T> {
+    fn detach(mut self) {
+        self.task.take().map(|x| x.detach());
     }
 }

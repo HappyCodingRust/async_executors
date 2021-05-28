@@ -22,10 +22,17 @@ use tokio::{ task::JoinHandle as TokioJoinHandle };
 
 #[cfg(feature = "glommio")]
 //
-use glommio_crate::task::JoinHandle as GlommioJoinHandle;
-#[cfg(feature = "glommio")]
-//
 use glommio_crate::Task as GlommioTask;
+
+/// A Join Handle
+pub trait AsyncJoinHandle: Future {
+
+	/// Drops this handle without canceling the underlying future.
+	///
+	/// This method can be used if you want to drop the handle, but let the execution continue.
+	fn detach(self);
+}
+
 /// A framework agnostic JoinHandle type. Cancels the future on dropping the handle.
 /// You can call [`detach`](JoinHandle::detach) to leave the future running when dropping the handle.
 ///
@@ -50,6 +57,12 @@ use glommio_crate::Task as GlommioTask;
 //
 pub struct JoinHandle<T> { pub(crate) inner: InnerJh<T> }
 
+
+impl<T: 'static> AsyncJoinHandle for JoinHandle<T> {
+	fn detach(self) {
+		Self::detach(self)
+	}
+}
 
 
 #[ derive(Debug) ] #[ allow(dead_code) ]
@@ -92,7 +105,6 @@ pub(crate) enum InnerJh<T>
 	Glommio
 	{
 		task: Option<GlommioTask<T>>,
-		handle: Option<GlommioJoinHandle<T>>
 	},
 
 	/// Wrapper around futures RemoteHandle.
@@ -132,8 +144,8 @@ impl<T> JoinHandle<T>
 				detached.store( true, Ordering::Relaxed );
 			}
 
-			#[ cfg( feature = "glommio" ) ] InnerJh::Glommio { task, handle } => {
-				*handle = task.take().map(|x| x.detach());
+			#[ cfg( feature = "glommio" ) ] InnerJh::Glommio { task } => {
+				task.take().map(|x| x.detach());
 			}
 
 			InnerJh::RemoteHandle( handle ) =>
@@ -187,19 +199,9 @@ impl<T: 'static> Future for JoinHandle<T>
 			}
 
 
-			#[ cfg( feature = "glommio" ) ] InnerJh::Glommio { task, handle } => {
+			#[ cfg( feature = "glommio" ) ] InnerJh::Glommio { task } => {
 				if let Some(task) = task {
 					Pin::new(task).poll(cx)
-				} else if let Some(handle) = handle {
-					match Pin::new(handle).poll(cx) {
-						Poll::Ready(Some(x)) => {
-							Poll::Ready(x)
-						}
-						Poll::Pending => Poll::Pending,
-						Poll::Ready(None) => {
-							panic!( "Task has been canceled. " )
-						}
-					}
 				} else {
 					unreachable!("Why would it ever happen?")
 				}
