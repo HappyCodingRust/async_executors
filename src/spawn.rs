@@ -7,7 +7,7 @@ use std::future::Future;
 
 /// The `SpawnStatic` trait allows for pushing futures onto an executor that will
 /// run them to completion. Except that this is used for ZST as type
-pub trait SpawnStatic: Sized {
+pub trait SpawnStatic {
     /// Spawns a future that will be run to completion
     fn spawn<Fut>(future: Fut) -> Result<(), SpawnError>
     where
@@ -17,7 +17,7 @@ pub trait SpawnStatic: Sized {
 
 /// The `LocalSpawnStatic` is similar to [`SpawnStatic`], but allows spawning futures
 /// that don't implement `Send`.
-pub trait LocalSpawnStatic: Sized {
+pub trait LocalSpawnStatic {
     /// Spawns a future that will be run to completion
     fn spawn_local<Fut>(future: Fut) -> Result<(), SpawnError>
     where

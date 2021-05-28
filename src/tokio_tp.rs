@@ -3,6 +3,7 @@
 use crate::block_on::BlockOn;
 use crate::{
     LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic, TokioCt, YieldNow,
+    YieldNowStatic,
 };
 use futures_util::future::BoxFuture;
 use {
@@ -218,8 +219,8 @@ impl LocalSpawnHandleStatic for TokioTp {
         })
     }
 }
-impl YieldNow for TokioTp {
-    fn yield_now(&self) -> BoxFuture<()> {
+impl YieldNowStatic for TokioTp {
+    fn yield_now() -> BoxFuture<'static, ()> {
         Box::pin(tokio::task::yield_now())
     }
 }

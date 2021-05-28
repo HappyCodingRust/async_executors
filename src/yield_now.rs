@@ -5,3 +5,13 @@ pub trait YieldNow {
     /// yield now
     fn yield_now<'a>(&'a self) -> BoxFuture<'a, ()>;
 }
+/// Indicates that a runtime can yield
+pub trait YieldNowStatic {
+    /// yield now
+    fn yield_now() -> BoxFuture<'static, ()>;
+}
+impl<T: YieldNowStatic> YieldNow for T {
+    fn yield_now<'a>(&'a self) -> BoxFuture<'a, ()> {
+        T::yield_now()
+    }
+}

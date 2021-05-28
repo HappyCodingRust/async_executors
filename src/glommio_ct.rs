@@ -1,6 +1,6 @@
 use crate::{
     BlockOn, InnerJh, JoinHandle, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic,
-    SpawnHandle, SpawnHandleExt, SpawnHandleStatic, SpawnStatic, YieldNow,
+    SpawnHandle, SpawnHandleExt, SpawnHandleStatic, SpawnStatic, YieldNowStatic,
 };
 use futures_task::{FutureObj, LocalSpawn, Spawn, SpawnError};
 use futures_util::future::{BoxFuture, LocalFutureObj};
@@ -171,8 +171,8 @@ impl SpawnHandleStatic for GlommioCt {
         })
     }
 }
-impl YieldNow for GlommioCt {
-    fn yield_now<'a>(&'a self) -> BoxFuture<'a, ()> {
+impl YieldNowStatic for GlommioCt {
+    fn yield_now() -> BoxFuture<'static, ()> {
         Box::pin(Task::<()>::yield_if_needed())
     }
 }

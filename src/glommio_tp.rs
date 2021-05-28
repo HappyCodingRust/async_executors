@@ -1,6 +1,6 @@
 use crate::{
     GlommioCt, InnerJh, JoinHandle, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic,
-    SpawnHandle, YieldNow,
+    SpawnHandle, YieldNowStatic,
 };
 use core::iter;
 use crossbeam::deque::Injector;
@@ -315,8 +315,8 @@ impl LocalSpawnHandleStatic for GlommioTp {
         GlommioCt::spawn_handle_local(future)
     }
 }
-impl YieldNow for GlommioTp {
-    fn yield_now<'a>(&'a self) -> BoxFuture<'a, ()> {
+impl YieldNowStatic for GlommioTp {
+    fn yield_now() -> BoxFuture<'static, ()> {
         Box::pin(Task::<()>::yield_if_needed())
     }
 }

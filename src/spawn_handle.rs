@@ -190,7 +190,7 @@ impl<Out: 'static + Send> SpawnHandle<Out> for crate::ThreadPool {
 }
 
 /// Let you spawn and get a [JoinHandle] to await the output of a future.
-pub trait SpawnHandleStatic: Sized {
+pub trait SpawnHandleStatic {
     /// Spawn a future and return a [JoinHandle] that can be awaited for the output of the future.
     fn spawn_handle<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
     where
