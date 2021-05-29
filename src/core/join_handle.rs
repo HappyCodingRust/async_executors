@@ -165,7 +165,7 @@ impl<T> JoinHandle<T>
 			{
 				if let Some(rh) = handle.take() { rh.forget() };
 			}
-
+			#[ cfg( feature = "futures-channel" ) ]
 			InnerJh::OneShot(_) => {}
 		}
 	}
@@ -221,6 +221,7 @@ impl<T: 'static> Future for JoinHandle<T>
 				}
 			}
 			InnerJh::RemoteHandle( ref mut handle ) => Pin::new( handle ).as_pin_mut().expect( "no polling after detach" ).poll( cx ),
+			#[ cfg( feature = "futures-channel" ) ]
 			InnerJh::OneShot(rx) => {
 				match Pin::new(rx).poll(cx) {
 					Poll::Ready(r) => {
@@ -264,6 +265,7 @@ impl<T> Drop for JoinHandle<T>
 			#[ cfg( feature = "glommio" ) ] InnerJh::Glommio { .. } => {}
 
 			InnerJh::RemoteHandle( _ ) => {},
+			#[ cfg( feature = "futures-channel" ) ]
 			InnerJh::OneShot(_) => {}
 		};
 	}
