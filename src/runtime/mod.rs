@@ -1,4 +1,3 @@
-
 #[cfg(feature = "tokio_ct")]
 mod tokio_ct;
 #[cfg(feature = "tokio_ct")]
@@ -16,6 +15,15 @@ mod tokio_tp_builder;
 pub use tokio_tp::*;
 #[cfg(feature = "tokio_tp")]
 pub use tokio_tp_builder::*;
+
+#[cfg(feature = "tokio")]
+mod tokio_jh;
+#[cfg(feature = "tokio")]
+pub use tokio_jh::*;
+#[cfg(feature = "tokio")]
+mod tokio_static;
+#[cfg(feature = "tokio")]
+pub use tokio_static::*;
 
 #[cfg(feature = "async_global")]
 mod async_global;
@@ -35,6 +43,10 @@ pub use glommio_ct::*;
 mod glommio_tp;
 #[cfg(feature = "glommio")]
 pub use glommio_tp::*;
+#[cfg(feature = "glommio")]
+mod glommio_static;
+#[cfg(feature = "glommio")]
+pub use glommio_static::*;
 
 #[cfg(feature = "bindgen")]
 mod bindgen;
@@ -43,11 +55,6 @@ pub use bindgen::*;
 
 #[cfg(feature = "tracing")]
 mod tracing;
-#[cfg(feature = "tokio")]
-mod tokio_jh;
-
-#[cfg(feature = "tokio")]
-pub use tokio_jh::*;
 
 // Re-export for convenience.
 //

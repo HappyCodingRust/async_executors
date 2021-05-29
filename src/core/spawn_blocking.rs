@@ -1,4 +1,4 @@
-use crate::{JoinHandle, SpawnError};
+use crate::{JoinHandle, SpawnError, StaticRuntime};
 
 /// Spawn a blocking task, maybe in a thread pool(tokio), or in current thread and spawns a new thread(std-async)
 pub trait SpawnBlocking<T: Send + 'static> {
@@ -21,7 +21,7 @@ pub trait SpawnBlockingExt<T: Send + 'static>: SpawnBlocking<T> {
 }
 
 /// Spawn a blocking task, maybe in a thread pool(tokio), or in current thread and spawns a new thread(std-async)
-pub trait SpawnBlockingStatic {
+pub trait SpawnBlockingStatic: StaticRuntime {
     /// spawn a blocking function
     fn spawn_blocking<T: Send + 'static>(
         func: impl FnOnce() -> T + Send + 'static,

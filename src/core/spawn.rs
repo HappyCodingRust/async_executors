@@ -1,3 +1,4 @@
+use crate::StaticRuntime;
 use futures_task::{FutureObj, LocalFutureObj};
 use futures_util::future::RemoteHandle;
 use futures_util::FutureExt;
@@ -328,7 +329,7 @@ pub trait LocalSpawnExt: LocalSpawn {
 
 /// The `SpawnStatic` trait allows for pushing futures onto an executor that will
 /// run them to completion. Except that this is used for ZST as type
-pub trait SpawnStatic {
+pub trait SpawnStatic: StaticRuntime {
     /// Spawns a future that will be run to completion
     fn spawn<Output, Fut>(future: Fut) -> Result<(), SpawnError>
     where
@@ -338,7 +339,7 @@ pub trait SpawnStatic {
 
 /// The `LocalSpawnStatic` is similar to [`SpawnStatic`], but allows spawning futures
 /// that don't implement `Send`.
-pub trait LocalSpawnStatic {
+pub trait LocalSpawnStatic: StaticRuntime {
     /// Spawns a future that will be run to completion
     fn spawn_local<Output, Fut>(future: Fut) -> Result<(), SpawnError>
     where

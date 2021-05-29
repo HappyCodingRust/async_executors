@@ -1,4 +1,4 @@
-use async_executors::{GlommioCt, SpawnStatic};
+use async_executors::{Glommio, GlommioCt, SpawnStatic};
 use futures::channel::{oneshot, oneshot::Sender};
 
 fn lib_function<Exec: SpawnStatic>(tx: Sender<&'static str>) {
@@ -17,7 +17,7 @@ fn main() {
     let program = async {
         let (tx, rx) = oneshot::channel();
 
-        lib_function::<GlommioCt>(tx);
+        lib_function::<Glommio>(tx);
         println!("{}", rx.await.expect("receive on channel"));
     };
 

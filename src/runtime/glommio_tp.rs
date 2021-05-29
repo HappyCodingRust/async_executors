@@ -1,6 +1,7 @@
+use crate::Glommio;
 use crate::{
-    GlommioCt, JoinHandle, LocalSpawn, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic,
-    Spawn, SpawnError, SpawnHandle, YieldNowStatic,
+    JoinHandle, LocalSpawn, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic, Spawn,
+    SpawnError, SpawnHandle,
 };
 use core::iter;
 use crossbeam::deque::Injector;
@@ -8,9 +9,9 @@ use crossbeam::deque::Stealer;
 use crossbeam::deque::Worker;
 use futures_executor::block_on;
 use futures_task::{FutureObj, LocalFutureObj};
-use futures_util::future::{BoxFuture, RemoteHandle};
+use futures_util::future::RemoteHandle;
 use futures_util::FutureExt;
-use glommio_crate::{LocalExecutorBuilder, Task};
+use glommio_crate::LocalExecutorBuilder;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::future::Future;
@@ -281,37 +282,15 @@ impl<Out: Send + 'static> SpawnHandle<Out> for GlommioTp {
 
 impl LocalSpawn for GlommioTp {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
-        GlommioCt::spawn_local(future)
+        Glommio::spawn_local(future)
     }
 }
-impl LocalSpawnStatic for GlommioTp {
-    fn spawn_local<Output, Fut>(future: Fut) -> Result<(), SpawnError>
-    where
-        Fut: Future<Output = Output> + 'static,
-        Output: 'static,
-    {
-        GlommioCt::spawn_local(future)
-    }
-}
+
 impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioTp {
     fn spawn_handle_local_obj(
         &self,
         future: LocalFutureObj<'static, Out>,
     ) -> Result<JoinHandle<Out>, SpawnError> {
-        GlommioCt::spawn_handle_local(future)
-    }
-}
-impl LocalSpawnHandleStatic for GlommioTp {
-    fn spawn_handle_local<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
-    where
-        Fut: Future<Output = Output> + 'static,
-        Output: 'static,
-    {
-        GlommioCt::spawn_handle_local(future)
-    }
-}
-impl YieldNowStatic for GlommioTp {
-    fn yield_now() -> BoxFuture<'static, ()> {
-        Box::pin(Task::<()>::yield_if_needed())
+        Glommio::spawn_handle_local(future)
     }
 }

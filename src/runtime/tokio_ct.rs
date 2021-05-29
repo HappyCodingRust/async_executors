@@ -1,6 +1,6 @@
 use crate::{
-    BlockOn, LocalSpawn, LocalSpawnHandleStatic, LocalSpawnStatic, Spawn, SpawnBlocking,
-    SpawnError, SpawnHandleStatic, SpawnStatic, TokioJoinHandle, YieldNowStatic,
+    BlockOn, LocalSpawn, LocalSpawnHandleStatic, Spawn, SpawnBlocking, SpawnError,
+    SpawnHandleStatic, TokioJoinHandle, YieldNowStatic,
 };
 use futures_util::future::BoxFuture;
 
@@ -118,34 +118,12 @@ impl Spawn for TokioCt {
     }
 }
 
-impl SpawnStatic for TokioCt {
-    fn spawn<Output, Fut>(future: Fut) -> Result<(), SpawnError>
-    where
-        Fut: Future<Output = Output> + Send + 'static,
-        Output: Send + 'static,
-    {
-        let _ = tokio::task::spawn(future);
-        Ok(())
-    }
-}
-
 impl LocalSpawn for TokioCt {
     fn spawn_local_obj(&self, future: LocalFutureObj<'static, ()>) -> Result<(), SpawnError> {
         // We drop the JoinHandle, so the task becomes detached.
         //
         let _ = self.local.spawn_local(future);
 
-        Ok(())
-    }
-}
-
-impl LocalSpawnStatic for TokioCt {
-    fn spawn_local<Output, Fut>(future: Fut) -> Result<(), SpawnError>
-    where
-        Fut: Future<Output = Output> + 'static,
-        Output: 'static,
-    {
-        let _ = tokio::task::spawn_local(future);
         Ok(())
     }
 }
@@ -158,8 +136,10 @@ impl<Out: 'static + Send> SpawnHandle<Out> for TokioCt {
         Ok(TokioJoinHandle::new(self.exec.spawn(future)).into())
     }
 }
+#[derive(Debug, Copy, Clone)]
+struct Tokio;
 
-impl SpawnHandleStatic for TokioCt {
+impl SpawnHandleStatic for Tokio {
     fn spawn_handle<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
     where
         Fut: Future<Output = Output> + Send + 'static,
@@ -178,7 +158,7 @@ impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
     }
 }
 
-impl LocalSpawnHandleStatic for TokioCt {
+impl LocalSpawnHandleStatic for Tokio {
     fn spawn_handle_local<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
     where
         Fut: Future<Output = Output> + 'static,
@@ -188,7 +168,7 @@ impl LocalSpawnHandleStatic for TokioCt {
     }
 }
 
-impl YieldNowStatic for TokioCt {
+impl YieldNowStatic for Tokio {
     fn yield_now() -> BoxFuture<'static, ()> {
         Box::pin(tokio::task::yield_now())
     }

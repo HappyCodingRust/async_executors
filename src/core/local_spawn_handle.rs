@@ -1,4 +1,4 @@
-use crate::SpawnError;
+use crate::{SpawnError, StaticRuntime};
 #[allow(unused_imports)]
 //
 use {
@@ -130,7 +130,7 @@ impl<Out: 'static> LocalSpawnHandle<Out> for crate::LocalSpawner {
 }
 
 /// Let you spawn and get a [JoinHandle] to await the output of a future.
-pub trait LocalSpawnHandleStatic {
+pub trait LocalSpawnHandleStatic: StaticRuntime {
     /// spawn and get a [JoinHandle] to await the output of a future.
     fn spawn_handle_local<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
     where

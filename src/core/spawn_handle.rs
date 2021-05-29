@@ -1,4 +1,4 @@
-use crate::SpawnError;
+use crate::{SpawnError, StaticRuntime};
 #[allow(unused_imports)]
 use {
     crate::JoinHandle,
@@ -187,7 +187,7 @@ impl<Out: 'static + Send> SpawnHandle<Out> for crate::ThreadPool {
 }
 
 /// Let you spawn and get a [JoinHandle] to await the output of a future.
-pub trait SpawnHandleStatic {
+pub trait SpawnHandleStatic: StaticRuntime {
     /// Spawn a future and return a [JoinHandle] that can be awaited for the output of the future.
     fn spawn_handle<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
     where
