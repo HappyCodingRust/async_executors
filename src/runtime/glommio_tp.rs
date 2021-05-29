@@ -286,10 +286,10 @@ impl LocalSpawn for GlommioTp {
     }
 }
 impl LocalSpawnStatic for GlommioTp {
-    fn spawn_local<Fut>(future: Fut) -> Result<(), SpawnError>
+    fn spawn_local<Output, Fut>(future: Fut) -> Result<(), SpawnError>
     where
-        Fut: Future + 'static,
-        Fut::Output: 'static,
+        Fut: Future<Output=Output> + 'static,
+        Output: 'static,
     {
         GlommioCt::spawn_local(future)
     }
@@ -303,12 +303,12 @@ impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioTp {
     }
 }
 impl LocalSpawnHandleStatic for GlommioTp {
-    fn spawn_handle_local<Fut>(
+    fn spawn_handle_local<Output, Fut>(
         future: Fut,
-    ) -> Result<JoinHandle<<Fut as Future>::Output>, SpawnError>
+    ) -> Result<JoinHandle<Output>, SpawnError>
     where
-        Fut: Future + 'static,
-        Fut::Output: 'static,
+        Fut: Future<Output=Output> + 'static,
+        Output: 'static,
     {
         GlommioCt::spawn_handle_local(future)
     }

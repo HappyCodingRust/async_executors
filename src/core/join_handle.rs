@@ -58,6 +58,7 @@ pub trait AsyncJoinHandle: Future {
 pub struct JoinHandle<T> { inner: InnerJh<T> }
 
 impl<T> JoinHandle<T> {
+	#[allow(dead_code)]
 	pub(crate) fn new(inner: InnerJh<T>) -> Self {
 		Self {
 			inner
@@ -117,6 +118,11 @@ pub(crate) enum InnerJh<T>
 	/// Wrapper around futures RemoteHandle.
 	//
 	RemoteHandle( Option<RemoteHandle<T>> ),
+
+
+	/// Wrapper around oneshot.
+	#[ cfg( feature = "futures-channel" ) ]
+	OneShot( futures_channel::oneshot::Receiver<T> ),
 }
 
 impl<T> JoinHandle<T>
@@ -160,6 +166,7 @@ impl<T> JoinHandle<T>
 				if let Some(rh) = handle.take() { rh.forget() };
 			}
 
+			InnerJh::OneShot(_) => {}
 		}
 	}
 }
@@ -214,6 +221,16 @@ impl<T: 'static> Future for JoinHandle<T>
 				}
 			}
 			InnerJh::RemoteHandle( ref mut handle ) => Pin::new( handle ).as_pin_mut().expect( "no polling after detach" ).poll( cx ),
+			InnerJh::OneShot(rx) => {
+				match Pin::new(rx).poll(cx) {
+					Poll::Ready(r) => {
+						Poll::Ready(r.expect("Cancelled"))
+					}
+					Poll::Pending => {
+						Poll::Pending
+					}
+				}
+			}
 		}
 	}
 }
@@ -247,6 +264,7 @@ impl<T> Drop for JoinHandle<T>
 			#[ cfg( feature = "glommio" ) ] InnerJh::Glommio { .. } => {}
 
 			InnerJh::RemoteHandle( _ ) => {},
+			InnerJh::OneShot(_) => {}
 		};
 	}
 }

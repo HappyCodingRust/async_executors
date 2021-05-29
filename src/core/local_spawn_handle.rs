@@ -131,8 +131,8 @@ impl<Out: 'static> LocalSpawnHandle<Out> for crate::LocalSpawner {
 /// Let you spawn and get a [JoinHandle] to await the output of a future.
 pub trait LocalSpawnHandleStatic {
     /// spawn and get a [JoinHandle] to await the output of a future.
-    fn spawn_handle_local<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
+    fn spawn_handle_local<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
     where
-        Fut: Future + 'static,
-        Fut::Output: 'static;
+        Fut: Future<Output=Output> + 'static,
+        Output: 'static;
 }

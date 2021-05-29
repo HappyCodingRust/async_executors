@@ -1,4 +1,7 @@
-use crate::{BlockOn, LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandleStatic, SpawnStatic, YieldNowStatic, SpawnBlocking};
+use crate::{
+    BlockOn, LocalSpawnHandleStatic, LocalSpawnStatic, SpawnBlocking, SpawnHandleStatic,
+    SpawnStatic, YieldNowStatic,
+};
 use futures_util::future::BoxFuture;
 
 use {
@@ -115,10 +118,10 @@ impl Spawn for TokioCt {
 }
 
 impl SpawnStatic for TokioCt {
-    fn spawn<Fut>(future: Fut) -> Result<(), SpawnError>
-        where
-            Fut: Future + Send + 'static,
-            Fut::Output: Send + 'static,
+    fn spawn<Output, Fut>(future: Fut) -> Result<(), SpawnError>
+    where
+        Fut: Future<Output = Output> + Send + 'static,
+        Output: Send + 'static,
     {
         let _ = tokio::task::spawn(future);
         Ok(())
@@ -136,10 +139,10 @@ impl LocalSpawn for TokioCt {
 }
 
 impl LocalSpawnStatic for TokioCt {
-    fn spawn_local<Fut>(future: Fut) -> Result<(), SpawnError>
-        where
-            Fut: Future + 'static,
-            Fut::Output: 'static,
+    fn spawn_local<Output, Fut>(future: Fut) -> Result<(), SpawnError>
+    where
+        Fut: Future<Output = Output> + 'static,
+        Output: 'static,
     {
         let _ = tokio::task::spawn_local(future);
         Ok(())
@@ -159,10 +162,10 @@ impl<Out: 'static + Send> SpawnHandle<Out> for TokioCt {
 }
 
 impl SpawnHandleStatic for TokioCt {
-    fn spawn_handle<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
-        where
-            Fut: Future + Send + 'static,
-            Fut::Output: 'static + Send,
+    fn spawn_handle<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
+    where
+        Fut: Future<Output = Output> + Send + 'static,
+        Output: 'static + Send,
     {
         Ok(JoinHandle::new(InnerJh::Tokio {
             handle: tokio::task::spawn(future),
@@ -184,10 +187,10 @@ impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
 }
 
 impl LocalSpawnHandleStatic for TokioCt {
-    fn spawn_handle_local<Fut>(future: Fut) -> Result<JoinHandle<Fut::Output>, SpawnError>
-        where
-            Fut: Future + 'static,
-            Fut::Output: 'static,
+    fn spawn_handle_local<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
+    where
+        Fut: Future<Output = Output> + 'static,
+        Output: 'static,
     {
         Ok(JoinHandle::new(InnerJh::Tokio {
             handle: tokio::task::spawn_local(future),
@@ -202,12 +205,17 @@ impl YieldNowStatic for TokioCt {
     }
 }
 impl<T: Send + 'static> SpawnBlocking<T> for TokioCt {
-    fn spawn_blocking_obj(&self, func: Box<dyn FnOnce() -> T + Send>) -> Result<JoinHandle<T>, SpawnError> {
+    fn spawn_blocking_obj(
+        &self,
+        func: Box<dyn FnOnce() -> T + Send>,
+    ) -> Result<JoinHandle<T>, SpawnError> {
         let handle = self.exec.spawn_blocking(func);
-        Ok(JoinHandle::new(InnerJh::Tokio { handle, detached: Default::default() }))
+        Ok(JoinHandle::new(InnerJh::Tokio {
+            handle,
+            detached: Default::default(),
+        }))
     }
 }
-
 
 #[cfg(test)]
 //

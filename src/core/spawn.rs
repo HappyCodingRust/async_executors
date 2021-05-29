@@ -8,18 +8,18 @@ use std::future::Future;
 /// run them to completion. Except that this is used for ZST as type
 pub trait SpawnStatic {
     /// Spawns a future that will be run to completion
-    fn spawn<Fut>(future: Fut) -> Result<(), SpawnError>
+    fn spawn<Output, Fut>(future: Fut) -> Result<(), SpawnError>
     where
-        Fut: Future + Send + 'static,
-        Fut::Output: Send + 'static;
+        Fut: Future<Output=Output> + Send + 'static,
+        Output: Send + 'static;
 }
 
 /// The `LocalSpawnStatic` is similar to [`SpawnStatic`], but allows spawning futures
 /// that don't implement `Send`.
 pub trait LocalSpawnStatic {
     /// Spawns a future that will be run to completion
-    fn spawn_local<Fut>(future: Fut) -> Result<(), SpawnError>
+    fn spawn_local<Output, Fut>(future: Fut) -> Result<(), SpawnError>
     where
-        Fut: Future + 'static,
-        Fut::Output: 'static;
+        Fut: Future<Output=Output> + 'static,
+        Output: 'static;
 }

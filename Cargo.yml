@@ -75,7 +75,7 @@ features:
 
   # Enabled the glommio executor support. Glommio is a cooperative thread-per-core model. Requires a very
   # new linux kernel(5.8+) This includes a current_thread and a thread_pool(with work-stealing algorithm) implementation
-  glommio   : [ glommio_crate, crossbeam, futures-executor ]
+  glommio   : [ glommio_crate, crossbeam, futures-executor, futures-channel ]
 
   # Add support for the futures LocalPool to SpawnHandle and LocalSpawnHandle
   # only makes sense in conjunction with spawn_handle.
@@ -114,6 +114,7 @@ dependencies:
   futures-task        : { version: ^0.3                                         }
   futures-util        : { version: ^0.3, features: [ channel ]                  }
   futures-executor    : { version: ^0.3, optional: true                         }
+  futures-channel     : { version: ^0.3, optional: true                         }
   tracing-futures     : { version: ^0.2, optional: true, features: [futures-03] }
 
   # Private deps
