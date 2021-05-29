@@ -1,8 +1,5 @@
-use async_executors::GlommioCt;
-use {
-    futures::channel::{oneshot, oneshot::Sender},
-    futures::task::{Spawn, SpawnExt},
-};
+use async_executors::{GlommioCt, Spawn, SpawnExt};
+use futures::channel::{oneshot, oneshot::Sender};
 
 fn lib_function(exec: impl Spawn, tx: Sender<&'static str>) {
     exec.spawn(async {

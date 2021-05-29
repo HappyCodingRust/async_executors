@@ -1,15 +1,14 @@
 use crate::{
-    GlommioCt, InnerJh, JoinHandle, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic,
-    SpawnHandle, YieldNowStatic,
+    GlommioCt, JoinHandle, LocalSpawn, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic,
+    Spawn, SpawnError, SpawnHandle, YieldNowStatic,
 };
 use core::iter;
 use crossbeam::deque::Injector;
 use crossbeam::deque::Stealer;
 use crossbeam::deque::Worker;
 use futures_executor::block_on;
-use futures_task::{FutureObj, LocalFutureObj, Spawn, SpawnError};
+use futures_task::{FutureObj, LocalFutureObj};
 use futures_util::future::{BoxFuture, RemoteHandle};
-use futures_util::task::LocalSpawn;
 use futures_util::FutureExt;
 use glommio_crate::{LocalExecutorBuilder, Task};
 use std::error::Error;
@@ -276,7 +275,7 @@ impl<Out: Send + 'static> SpawnHandle<Out> for GlommioTp {
             future: FutureObj::new(remote.boxed()),
             executor_id: None,
         });
-        Ok(JoinHandle::new(InnerJh::RemoteHandle(Some(handle))))
+        Ok(handle.into())
     }
 }
 
@@ -288,7 +287,7 @@ impl LocalSpawn for GlommioTp {
 impl LocalSpawnStatic for GlommioTp {
     fn spawn_local<Output, Fut>(future: Fut) -> Result<(), SpawnError>
     where
-        Fut: Future<Output=Output> + 'static,
+        Fut: Future<Output = Output> + 'static,
         Output: 'static,
     {
         GlommioCt::spawn_local(future)
@@ -303,11 +302,9 @@ impl<Out: Send + 'static> LocalSpawnHandle<Out> for GlommioTp {
     }
 }
 impl LocalSpawnHandleStatic for GlommioTp {
-    fn spawn_handle_local<Output, Fut>(
-        future: Fut,
-    ) -> Result<JoinHandle<Output>, SpawnError>
+    fn spawn_handle_local<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
     where
-        Fut: Future<Output=Output> + 'static,
+        Fut: Future<Output = Output> + 'static,
         Output: 'static,
     {
         GlommioCt::spawn_handle_local(future)

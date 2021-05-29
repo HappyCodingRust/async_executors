@@ -1,86 +1,183 @@
-# Auto-generated from "Cargo.yml"
-[badges]
+# When releasing to crates.io:
+#
+# - last check for all TODO, FIXME, expect, unwrap, todo!, unreachable!.
+# - recheck log statements (informative, none left that were just for development, ...)
+# - `cargo +nightly doc --no-deps --all-features --open` and re-read and final polish of documentation.
+#
+# - Update CHANGELOG.md.
+# - Update version numbers in Cargo.yml, Cargo.toml, install section of readme.
+#
+# - `touch **.rs && cargo clippy --tests --examples --benches --all-features`
+# - `cargo update`
+# - `cargo outdated --root-deps-only`
+# - `cargo audit`
+# - `cargo udeps --all-targets --all-features`
+# - `cargo crev crate verify --show-all --recursive` and review.
+# - 'cargo test --all-targets --all-features'
+#
+# - push dev and verify CI result
+# - check code coverage
+# - `cargo test` on dependent crates
+#
+# - cargo publish
+# - `git checkout master && git merge dev --no-ff`
+# - `git tag x.x.x` with version number.
+# - `git push && git push --tags`
+#
+[package]
+version = "0.4.1"
+name = "async_executors"
+authors = ["Naja Melan <najamelan@autistici.org>", "Jiangkun Qiu <qiujiangkuN@foxmail.com>"]
+description = "Implements Spawn, SpawnLocal and SpawnHandle for commonly used executors."
+documentation = "https://docs.rs/async_executors"
+repository = "https://github.com/HappyCodingPro/async_executors"
+readme = "README.md"
+keywords = ["async", "executor", "futures"]
+categories = ["asynchronous", "concurrency"]
+license = "Unlicense"
+edition = "2018"
+exclude = [
+    "examples",
+    "tests",
+    "TODO.md",
+    "deny.toml",
+    ".travis.yml",
+    "CONTRIBUTING.md"
+]
+
+[package.metadata.docs.rs]
+all-features = true
+targets = []
+
+# Please see the readme for details.
+
+[features]
+
+# The `notwasm` feature only exists so that cargo test doesn't try to compile the examples when testing wasm.
+
+default = ["notwasm"]
+# Enables the async-std task executor. Not available on WASM.
+async_std = ["async_std_crate"]
+# Enables the tokio current_thread executor. Not available on WASM.
+tokio_ct = ["tokio/rt"]
+# Enables the tokio thread_pool executor. Not available on WASM.
+tokio_tp = ["tokio/rt-multi-thread"]
+
+# Enables the wasm-bindgen-futures executor. Only available on WASM. If no other executors are enabled
+# this will be enabled by default. Currently the only executor available on WASM, so it makes no sense
+# for it not to be enabled, and it's providing dependency wasm-bindgen-futures will always be compiled in.
+bindgen = ["wasm-bindgen-futures"]
+# Enabled the glommio executor support. Glommio is a cooperative thread-per-core model. Requires a very
+# new linux kernel(5.8+) This includes a current_thread and a thread_pool(with work-stealing algorithm) implementation
+glommio = ["glommio_crate", "crossbeam"]
+# Add support for the futures LocalPool to SpawnHandle and LocalSpawnHandle
+# only makes sense in conjunction with spawn_handle.
+
+localpool = [] #["futures-executor"]
+# Add support for the futures ThreadPool to SpawnHandle and LocalSpawnHandle
+# only makes sense in conjunction with spawn_handle.
+threadpool = ["futures-executor/thread-pool"]
+# Add support for the executor from async-global-executor.
+
+async_global = ["async-global-executor"]
+# Enable integration with tracing-futures. This implements the SpawnHandle family of traits
+# on wrapped executors Instrumented<T> and WithDispatch<T>.
+tracing = ["tracing-futures"]
+# only used internally, don't use
+
+notwasm = []
+
 [badges.maintenance]
 status = "actively-developed"
 
 [badges.travis-ci]
 repository = "najamelan/async_executors"
 
-[build-dependencies]
-rustc_version = "^0.3"
-
-[dependencies]
-[dependencies.async-global-executor]
-default-features = false
-optional = true
-version = "^2"
-
-[dependencies.async_std_crate]
-features = ["unstable"]
-optional = true
-package = "async-std"
-version = "^1.6"
-
-[dependencies.crossbeam]
-optional = true
-version = "^0.8"
-
-[dependencies.futures-channel]
-optional = true
-version = "^0.3"
-
-[dependencies.futures-executor]
-optional = true
-version = "^0.3"
-
 [dependencies.futures-task]
 version = "^0.3"
 
 [dependencies.futures-util]
+version = "^0.3"
 features = ["channel"]
+
+[dependencies.futures-executor]
 version = "^0.3"
 
-[dependencies.glommio_crate]
+[dependencies.futures-channel]
+version = "^0.3"
 optional = true
-package = "glommio"
-version = "^0.4"
-
-[dependencies.pin-utils]
-optional = true
-version = "^0.1"
-
-[dependencies.tokio]
-optional = true
-version = "^1"
 
 [dependencies.tracing-futures]
-features = ["futures-03"]
-optional = true
 version = "^0.2"
-
-[dependencies.wasm-bindgen-futures]
 optional = true
+features = ["futures-03"]
+
+[dependencies.async-global-executor]
+version = "^2"
+optional = true
+default-features = false
+
+[dependencies.async_std_crate]
+version = "^1.6"
+optional = true
+package = "async-std"
+features = ["unstable"]
+
+[dependencies.tokio]
+version = "^1"
+optional = true
+
+[dependencies.pin-utils]
+version = "^0.1"
+optional = true
+
+[dependencies.crossbeam]
+version = "^0.8"
+optional = true
+
+[dependencies.glommio_crate]
 version = "^0.4"
+optional = true
+package = "glommio"
+
+# necessary for the crate to compile for `cargo doc`
+[dependencies.wasm-bindgen-futures]
+version = "^0.4"
+optional = true
 
 [dev-dependencies]
 static_assertions = "^1"
 
 [dev-dependencies.futures]
-features = ["thread-pool"]
 version = "^0.3"
+features = ["thread-pool"]
 
 [dev-dependencies.futures-timer]
-features = ["wasm-bindgen"]
 version = "^3"
+features = ["wasm-bindgen"]
 
 [dev-dependencies.tracing-subscriber]
+version = "^0.2"
 default-features = false
 features = ["fmt"]
-version = "^0.2"
 
 [dev-dependencies.tracing_crate]
-package = "tracing"
 version = "^0.1"
+package = "tracing"
+
+[build-dependencies]
+rustc_version = "^0.3"
+
+[profile.release]
+codegen-units = 1
+
+[target."cfg(target_arch = \"wasm32\")".dev-dependencies]
+wasm-bindgen-test = "^0.3"
+
+[target."cfg(not(target_os = \"unknown\"))".dev-dependencies.async_std_crate]
+version = "^1"
+package = "async-std"
+features = ["attributes", "unstable"]
 
 [[example]]
 name = "async_std"
@@ -122,51 +219,52 @@ name = "glommio_tp"
 path = "examples/glommio_tp.rs"
 required-features = ["notwasm", "glommio"]
 
-[features]
-async_global = ["async-global-executor"]
-async_std = ["async_std_crate"]
-bindgen = ["wasm-bindgen-futures"]
-default = ["notwasm"]
-glommio = ["glommio_crate", "crossbeam", "futures-executor", "futures-channel"]
-localpool = ["futures-executor"]
-notwasm = []
-threadpool = ["futures-executor/thread-pool"]
-tokio_ct = ["tokio/rt"]
-tokio_tp = ["tokio/rt-multi-thread"]
-tracing = ["tracing-futures"]
+[[test]]
+name = "async_global"
+path = "tests/async_global.rs"
+required-features = ["notwasm", "async_global"]
 
-[package]
-authors = ["Naja Melan <najamelan@autistici.org>"]
-categories = ["asynchronous", "concurrency"]
-description = "Implements Spawn, SpawnLocal and SpawnHandle for commonly used executors."
-documentation = "https://docs.rs/async_executors"
-edition = "2018"
-exclude = ["examples", "tests", "TODO.md", "deny.toml", ".travis.yml", "CONTRIBUTING.md"]
-keywords = ["async", "executor", "futures"]
-license = "Unlicense"
-name = "async_executors"
-readme = "README.md"
-repository = "https://github.com/najamelan/async_executors"
-version = "0.4.1"
+[[test]]
+name = "async_global_wasm"
+path = "tests/async_global_wasm.rs"
+required-features = ["async_global"]
 
-[package.metadata]
-[package.metadata.docs]
-[package.metadata.docs.rs]
-all-features = true
-targets = []
+[[test]]
+name = "async_std"
+path = "tests/async_std.rs"
+required-features = ["notwasm", "async_std"]
 
-[profile]
-[profile.release]
-codegen-units = 1
+[[test]]
+name = "async_std_wasm"
+path = "tests/async_std_wasm.rs"
+required-features = ["async_std"]
 
-[target]
-[target."cfg(not(target_os = \"unknown\"))"]
-[target."cfg(not(target_os = \"unknown\"))".dev-dependencies]
-[target."cfg(not(target_os = \"unknown\"))".dev-dependencies.async_std_crate]
-features = ["attributes", "unstable"]
-package = "async-std"
-version = "^1"
+[[test]]
+name = "glommio_ct"
+path = "tests/glommio_ct.rs"
+required-features = ["notwasm", "glommio"]
 
-[target."cfg(target_arch = \"wasm32\")"]
-[target."cfg(target_arch = \"wasm32\")".dev-dependencies]
-wasm-bindgen-test = "^0.3"
+[[test]]
+name = "bindgen"
+path = "tests/bindgen.rs"
+required-features = ["bindgen"]
+
+[[test]]
+name = "localpool"
+path = "tests/localpool.rs"
+required-features = ["notwasm", "localpool"]
+
+[[test]]
+name = "threadpool"
+path = "tests/threadpool.rs"
+required-features = ["notwasm", "threadpool"]
+
+[[test]]
+name = "tokio_ct"
+path = "tests/tokio_ct.rs"
+required-features = ["notwasm", "tokio_ct"]
+
+[[test]]
+name = "tokio_tp"
+path = "tests/tokio_tp.rs"
+required-features = ["notwasm", "tokio_tp"]

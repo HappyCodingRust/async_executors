@@ -2,13 +2,11 @@
 #![cfg_attr(nightly, doc(include = "../README.md"))]
 #![doc = ""] // empty doc line to handle missing doc warning when the feature is missing.
 #![doc(html_root_url = "https://docs.rs/async_executors")]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 #![forbid(unsafe_code)]
 #![allow(clippy::suspicious_else_formatting)]
 #![warn(
     anonymous_parameters,
-    missing_copy_implementations,
-    missing_debug_implementations,
     nonstandard_style,
     rust_2018_idioms,
     single_use_lifetimes,
@@ -20,8 +18,8 @@
     variant_size_differences
 )]
 
-mod runtime;
 mod core;
+mod runtime;
 
-pub use runtime::*;
 pub use crate::core::*;
+pub use runtime::*;

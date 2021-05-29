@@ -1,8 +1,8 @@
+use crate::SpawnError;
 #[allow(unused_imports)]
-//
 use {
     crate::JoinHandle,
-    futures_task::{FutureObj, SpawnError},
+    futures_task::FutureObj,
     futures_util::{
         future::{abortable, FutureExt},
         task::SpawnExt,
@@ -18,7 +18,8 @@ use {
 /// Let you spawn and get a [JoinHandle] to await the output of a future.
 ///
 /// This trait works much like the [`Spawn`](futures_task::Spawn) trait from the futures library.
-/// It takes a [`FutureObj`] so we can hopefully make it `no_std` compatible when needed. This
+/// It takes a [`FutureObj`] so we can hopefully make it `no_std` compatible when needed. Thi
+/// s
 /// also allows it to be object safe.  For convenience, there is [`SpawnHandleExt`] which allows you
 /// to spawn a generic future directly without having to manually make the [`FutureObj`].
 ///
@@ -166,7 +167,7 @@ impl<Out: 'static + Send> SpawnHandle<Out> for crate::LocalSpawner {
 
         self.spawn(fut)?;
 
-        Ok(JoinHandle::new(crate::InnerJh::RemoteHandle(Some(handle))))
+        Ok(handle.into())
     }
 }
 
@@ -181,7 +182,7 @@ impl<Out: 'static + Send> SpawnHandle<Out> for crate::ThreadPool {
 
         self.spawn(fut)?;
 
-        Ok(JoinHandle::new(crate::InnerJh::RemoteHandle(Some(handle))))
+        Ok(handle.into())
     }
 }
 
@@ -190,6 +191,6 @@ pub trait SpawnHandleStatic {
     /// Spawn a future and return a [JoinHandle] that can be awaited for the output of the future.
     fn spawn_handle<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
     where
-        Fut: Future<Output=Output> + Send + 'static,
+        Fut: Future<Output = Output> + Send + 'static,
         Output: 'static + Send;
 }

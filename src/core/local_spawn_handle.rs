@@ -1,8 +1,9 @@
+use crate::SpawnError;
 #[allow(unused_imports)]
 //
 use {
     crate::JoinHandle,
-    futures_task::{LocalFutureObj, SpawnError},
+    futures_task::LocalFutureObj,
     futures_util::{
         future::{abortable, FutureExt},
         task::LocalSpawnExt,
@@ -124,7 +125,7 @@ impl<Out: 'static> LocalSpawnHandle<Out> for crate::LocalSpawner {
 
         self.spawn_local(fut)?;
 
-        Ok(JoinHandle::new(crate::InnerJh::RemoteHandle(Some(handle))))
+        Ok(handle.into())
     }
 }
 
@@ -133,6 +134,6 @@ pub trait LocalSpawnHandleStatic {
     /// spawn and get a [JoinHandle] to await the output of a future.
     fn spawn_handle_local<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
     where
-        Fut: Future<Output=Output> + 'static,
+        Fut: Future<Output = Output> + 'static,
         Output: 'static;
 }

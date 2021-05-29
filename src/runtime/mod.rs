@@ -43,6 +43,11 @@ pub use bindgen::*;
 
 #[cfg(feature = "tracing")]
 mod tracing;
+#[cfg(feature = "tokio")]
+mod tokio_jh;
+
+#[cfg(feature = "tokio")]
+pub use tokio_jh::*;
 
 // Re-export for convenience.
 //

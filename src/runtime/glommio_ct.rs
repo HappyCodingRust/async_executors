@@ -1,14 +1,17 @@
-use crate::{BlockOn, InnerJh, JoinHandle, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic, SpawnHandle, SpawnHandleStatic, SpawnStatic, YieldNowStatic, AsyncJoinHandle, SpawnBlockingStatic};
-use futures_task::{FutureObj, LocalSpawn, Spawn, SpawnError};
+use crate::{
+    BlockOn, JoinHandle, LocalSpawn, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic,
+    Spawn, SpawnBlockingStatic, SpawnError, SpawnHandle, SpawnHandleStatic, SpawnStatic,
+    YieldNowStatic,
+};
+use futures_task::FutureObj;
 use futures_util::future::{BoxFuture, LocalFutureObj};
+use futures_util::FutureExt;
 use glommio_crate::{LocalExecutor, LocalExecutorBuilder, Task};
 use std::future::Future;
 use std::rc::Rc;
-use std::task::{Context, Poll};
-use std::pin::Pin;
 
 /// A simple glommio runtime builder
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GlommioCt {
     executor: Rc<LocalExecutor>,
 }
@@ -46,7 +49,7 @@ impl LocalSpawn for GlommioCt {
 impl LocalSpawnStatic for GlommioCt {
     fn spawn_local<Output, Fut>(future: Fut) -> Result<(), SpawnError>
     where
-        Fut: Future<Output=Output> + 'static,
+        Fut: Future<Output = Output> + 'static,
         Output: 'static,
     {
         glommio_crate::Task::local(future).detach();
@@ -54,19 +57,22 @@ impl LocalSpawnStatic for GlommioCt {
     }
 }
 impl<Out: 'static> LocalSpawnHandle<Out> for GlommioCt {
-    fn spawn_handle_local_obj(&self, future: LocalFutureObj<'static, Out>) -> Result<JoinHandle<Out>, SpawnError> {
+    fn spawn_handle_local_obj(
+        &self,
+        future: LocalFutureObj<'static, Out>,
+    ) -> Result<JoinHandle<Out>, SpawnError> {
         GlommioCt::spawn_handle_local(future)
     }
 }
 impl LocalSpawnHandleStatic for GlommioCt {
-    fn spawn_handle_local<Output, Fut>(
-        future: Fut,
-    ) -> Result<JoinHandle<Output>, SpawnError>
-        where
-            Fut: Future<Output=Output> + 'static,
-            Output: 'static,
+    fn spawn_handle_local<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
+    where
+        Fut: Future<Output = Output> + 'static,
+        Output: 'static,
     {
-        Ok(JoinHandle::new(InnerJh::Glommio{ task: Some(glommio_crate::Task::local(future)) }))
+        let (remote, handle) = future.remote_handle();
+        Task::local(remote).detach();
+        Ok(handle.into())
     }
 }
 impl Spawn for GlommioCt {
@@ -78,7 +84,7 @@ impl Spawn for GlommioCt {
 impl SpawnStatic for GlommioCt {
     fn spawn<Output, Fut>(future: Fut) -> Result<(), SpawnError>
     where
-        Fut: Future<Output=Output> + Send + 'static,
+        Fut: Future<Output = Output> + Send + 'static,
         Output: Send + 'static,
     {
         glommio_crate::Task::local(future).detach();
@@ -96,10 +102,12 @@ impl<Out: Send + 'static> SpawnHandle<Out> for GlommioCt {
 impl SpawnHandleStatic for GlommioCt {
     fn spawn_handle<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
     where
-        Fut: Future<Output=Output> + Send + 'static,
+        Fut: Future<Output = Output> + Send + 'static,
         Output: 'static + Send,
     {
-        Ok(JoinHandle::new(InnerJh::Glommio{task: Some(Task::local(future))}))
+        let (remote, handle) = future.remote_handle();
+        glommio_crate::Task::local(remote).detach();
+        Ok(handle.into())
     }
 }
 impl YieldNowStatic for GlommioCt {
@@ -108,28 +116,14 @@ impl YieldNowStatic for GlommioCt {
     }
 }
 impl SpawnBlockingStatic for GlommioCt {
-    fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> Result<JoinHandle<T>, SpawnError> {
-        let (tx, rx) = futures_channel::oneshot::channel();
-        std::thread::spawn(move || tx.send(func()));
-        Ok(JoinHandle::new(InnerJh::OneShot(rx)))
+    fn spawn_blocking<T: Send + 'static>(
+        func: impl FnOnce() -> T + Send + 'static,
+    ) -> Result<JoinHandle<T>, SpawnError> {
+        let (remote, handle) = async { func() }.remote_handle();
+        std::thread::spawn(move || futures_executor::block_on(remote));
+        Ok(handle.into())
     }
 }
-struct GlommioJoinHandle<T> {
-    task: Option<Task<T>>
-}
-impl<T> Future for GlommioJoinHandle<T> {
-    type Output = T;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Pin::new(self.task.as_mut().unwrap()).poll(cx)
-    }
-}
-impl<T> AsyncJoinHandle for GlommioJoinHandle<T> {
-    fn detach(mut self) {
-        self.task.take().map(|x| x.detach());
-    }
-}
-
 #[cfg(test)]
 //
 mod tests {
