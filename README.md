@@ -118,56 +118,6 @@ Note that you should never use `block_on` inside async contexts. Some backends w
 
 You can use the `SpawnHandle` and `LocalSpawnHandle` traits as bounds for obtaining join handles.
 
-##### Example
-
-```rust
-use
-{
-  async_executors :: { JoinHandle, SpawnHandle, SpawnHandleExt       } ,
-  std             :: { sync::Arc                                     } ,
-  futures         :: { FutureExt, executor::{ ThreadPool, block_on } } ,
-};
-
-
-// Example of a library function that needs an executor. Just use impl Trait.
-//
-fn needs_exec( exec: impl SpawnHandle<()> )
-{
-   let handle = exec.spawn_handle( async {} );
-}
-
-
-// A type that needs to hold on to an executor during it's lifetime. Here it
-// must be heap allocated.
-//
-struct SomeObj{ exec: Arc< dyn SpawnHandle<u8> > }
-
-
-impl SomeObj
-{
-   pub fn new( exec: Arc< dyn SpawnHandle<u8> > ) -> SomeObj
-   {
-      SomeObj{ exec }
-   }
-
-   fn run( &self ) -> JoinHandle<u8>
-   {
-      self.exec.spawn_handle( async{ 5 } ).expect( "spawn" )
-   }
-}
-
-
-fn main()
-{
-  let exec = ThreadPool::new().expect( "build threadpool" );
-  let obj  = SomeObj::new( Arc::new(exec) );
-
-  let x = block_on( obj.run() );
-
-  assert_eq!( x, 5 );
-}
-```
-
 
 ### For API consumers
 
@@ -181,28 +131,6 @@ You can basically pass the wrapper types provided in _async_executors_ to API's 
 All wrappers also implement `Clone`, `Debug` and the zero sized ones also `Copy`.
 
 Some executors are a bit special, so make sure to check the API docs for the one you intend to use. Some also provide extra methods like `block_on` which will call a framework specific `block_on` rather than the one from _futures_.
-
-#### Example
-
-```rust
-use
-{
-  async_executors :: { AsyncStd, TokioTpBuilder, SpawnHandle } ,
-  std             :: { convert::TryFrom                      } ,
-};
-
-fn needs_exec( exec: impl SpawnHandle<()> + SpawnHandle<String> ){};
-
-// AsyncStd is zero sized, so it's easy to instantiate.
-//
-needs_exec( AsyncStd );
-
-let tp = TokioTpBuilder::new().build().expect( "build threadpool" );
-
-needs_exec( tp );
-```
-
-For more examples, check out the [examples directory](https://github.com/najamelan/async_executors/tree/master/examples). If you want to get a more polished API for adhering to structured concurrency, check out [_async_nursery_](https://crates.io/crates/async_nursery).
 
 ## API
 

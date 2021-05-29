@@ -53,9 +53,9 @@ targets = []
 
 [features]
 
-# The `notwasm` feature only exists so that cargo test doesn't try to compile the examples when testing wasm.
+# The feature only exists so that cargo test doesn't try to compile the examples when testing wasm.
 
-default = ["notwasm"]
+default = []
 # Enables the async-std task executor. Not available on WASM.
 async_std = ["async_std_crate"]
 # Enables the tokio current_thread executor. Not available on WASM.
@@ -83,9 +83,7 @@ async_global = ["async-global-executor"]
 # Enable integration with tracing-futures. This implements the SpawnHandle family of traits
 # on wrapped executors Instrumented<T> and WithDispatch<T>.
 tracing = ["tracing-futures"]
-# only used internally, don't use
 
-notwasm = []
 
 [badges.maintenance]
 status = "actively-developed"
@@ -168,9 +166,6 @@ package = "tracing"
 [build-dependencies]
 rustc_version = "^0.3"
 
-[profile.release]
-codegen-units = 1
-
 [target."cfg(target_arch = \"wasm32\")".dev-dependencies]
 wasm-bindgen-test = "^0.3"
 
@@ -182,47 +177,47 @@ features = ["attributes", "unstable"]
 [[example]]
 name = "async_std"
 path = "examples/async_std.rs"
-required-features = ["notwasm", "async_std"]
+required-features = ["async_std"]
 
 [[example]]
 name = "tokio_ct"
 path = "examples/tokio_ct.rs"
-required-features = ["notwasm", "tokio_ct"]
+required-features = ["tokio_ct"]
 
 [[example]]
 name = "tokio_tp"
 path = "examples/tokio_tp.rs"
-required-features = ["notwasm", "tokio_tp"]
+required-features = ["tokio_tp"]
 
 [[example]]
 name = "spawn_handle_multi"
 path = "examples/spawn_handle_multi.rs"
-required-features = ["notwasm", "async_std"]
+required-features = ["async_std"]
 
 [[example]]
 name = "tracing"
 path = "examples/tracing.rs"
-required-features = ["notwasm", "tracing", "async_std"]
+required-features = ["tracing", "async_std"]
 
 [[example]]
 name = "glommio_ct"
 path = "examples/glommio_ct.rs"
-required-features = ["notwasm", "glommio"]
+required-features = ["glommio"]
 
 [[example]]
 name = "glommio_ct_static"
 path = "examples/glommio_ct_static.rs"
-required-features = ["notwasm", "glommio"]
+required-features = ["glommio"]
 
 [[example]]
 name = "glommio_tp"
 path = "examples/glommio_tp.rs"
-required-features = ["notwasm", "glommio"]
+required-features = ["glommio"]
 
 [[test]]
 name = "async_global"
 path = "tests/async_global.rs"
-required-features = ["notwasm", "async_global"]
+required-features = ["async_global"]
 
 [[test]]
 name = "async_global_wasm"
@@ -232,7 +227,7 @@ required-features = ["async_global"]
 [[test]]
 name = "async_std"
 path = "tests/async_std.rs"
-required-features = ["notwasm", "async_std"]
+required-features = ["async_std"]
 
 [[test]]
 name = "async_std_wasm"
@@ -242,7 +237,7 @@ required-features = ["async_std"]
 [[test]]
 name = "glommio_ct"
 path = "tests/glommio_ct.rs"
-required-features = ["notwasm", "glommio"]
+required-features = ["glommio"]
 
 [[test]]
 name = "bindgen"
@@ -252,19 +247,19 @@ required-features = ["bindgen"]
 [[test]]
 name = "localpool"
 path = "tests/localpool.rs"
-required-features = ["notwasm", "localpool"]
+required-features = ["localpool"]
 
 [[test]]
 name = "threadpool"
 path = "tests/threadpool.rs"
-required-features = ["notwasm", "threadpool"]
+required-features = ["threadpool"]
 
 [[test]]
 name = "tokio_ct"
 path = "tests/tokio_ct.rs"
-required-features = ["notwasm", "tokio_ct"]
+required-features = ["tokio_ct"]
 
 [[test]]
 name = "tokio_tp"
 path = "tests/tokio_tp.rs"
-required-features = ["notwasm", "tokio_tp"]
+required-features = ["tokio_tp"]

@@ -4,10 +4,11 @@ use crate::{
 };
 use futures_util::future::BoxFuture;
 
+use std::rc::Rc;
 use {
     crate::{JoinHandle, LocalSpawnHandle, SpawnHandle},
     futures_task::{FutureObj, LocalFutureObj},
-    std::{future::Future, sync::Arc},
+    std::future::Future,
     tokio::{runtime::Runtime, task::LocalSet},
 };
 
@@ -78,8 +79,8 @@ use {
 #[cfg_attr(nightly, doc(cfg(feature = "tokio_ct")))]
 //
 pub struct TokioCt {
-    pub(crate) exec: Arc<Runtime>,
-    pub(crate) local: Arc<LocalSet>,
+    pub(crate) exec: Rc<Runtime>,
+    pub(crate) local: Rc<LocalSet>,
 }
 
 impl TokioCt {
