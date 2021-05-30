@@ -6,7 +6,7 @@ use futures_util::future::BoxFuture;
 use std::future::Future;
 
 #[derive(Debug, Copy, Clone)]
-struct Tokio;
+pub struct Tokio;
 
 impl SpawnStatic for Tokio {
     fn spawn<Output, Fut>(future: Fut) -> Result<(), SpawnError>
