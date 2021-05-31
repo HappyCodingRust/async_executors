@@ -1,6 +1,6 @@
 use crate::{
-    BlockOn, JoinHandle, LocalSpawn, LocalSpawnHandle, Spawn, SpawnError, SpawnHandle,
-    SpawnHandleStatic,
+    BlockOn, CoreAffinityGuard, JoinHandle, LocalSpawn, LocalSpawnHandle, Spawn, SpawnError,
+    SpawnHandle, SpawnHandleStatic,
 };
 use crate::{Glommio, LocalSpawnHandleStatic};
 use futures_task::FutureObj;
@@ -12,24 +12,28 @@ use std::rc::Rc;
 /// A simple glommio runtime builder
 #[derive(Debug, Clone)]
 pub struct GlommioCt {
+    guard: Rc<CoreAffinityGuard>,
     executor: Rc<LocalExecutor>,
 }
 
 impl GlommioCt {
     /// new Glommio Local Executor
     pub fn new(name: &str, cpu_set: Option<usize>) -> Self {
+        let guard = Rc::new(CoreAffinityGuard::new().unwrap());
         let mut builder = LocalExecutorBuilder::new().name(&name);
         if let Some(binding) = cpu_set {
             builder = builder.pin_to_cpu(binding);
         }
         let executor = builder.make().unwrap();
         Self {
+            guard,
             executor: Rc::new(executor),
         }
     }
     /// execute the code until completion
     pub fn block_on<F: Future>(&self, future: F) -> <F as Future>::Output {
-        self.executor.run(future)
+        let val = self.executor.run(future);
+        val
     }
 }
 

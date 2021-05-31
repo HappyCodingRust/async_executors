@@ -5,7 +5,11 @@ use crate::{
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
 use glommio_crate::Task;
+use nix::sched::CpuSet;
+use std::cell::Cell;
 use std::future::Future;
+use std::marker::PhantomData;
+use std::rc::Rc;
 
 /// A simple glommio runtime builder
 #[derive(Debug, Clone, Copy)]
@@ -67,8 +71,9 @@ impl SpawnBlockingStatic for Glommio {
         func: impl FnOnce() -> T + Send + 'static,
     ) -> Result<JoinHandle<T>, SpawnError> {
         let (remote, handle) = async { func() }.remote_handle();
+        let cpu_set = DEFAULT_CPU_SET.with(|x| x.clone().into_inner()).unwrap();
         std::thread::spawn(move || {
-            bind_to_cpu_set(None).expect("Unbind core affinity error");
+            bind_to_cpu_set(cpu_set).expect("Unbind core affinity error");
             futures_executor::block_on(remote)
         });
         Ok(handle.into())
@@ -92,11 +97,46 @@ macro_rules! to_io_error {
         }
     }};
 }
-fn bind_to_cpu_set(cpus: impl IntoIterator<Item = usize>) -> std::io::Result<()> {
-    let mut cpuset = nix::sched::CpuSet::new();
-    for cpu in cpus {
-        to_io_error!(&cpuset.set(cpu))?;
+fn bind_to_cpu_set(cpuset: CpuSet) -> std::io::Result<()> {
+    let pid = nix::unistd::Pid::this();
+    to_io_error!(nix::sched::sched_setaffinity(pid, &cpuset))
+}
+
+thread_local! {
+    static DEFAULT_CPU_SET: Cell<Option<CpuSet>> = Cell::new(None);
+}
+fn set_default_cpu() -> std::io::Result<()> {
+    let pid = nix::unistd::Pid::this();
+    let set = to_io_error!(nix::sched::sched_getaffinity(pid))?;
+
+    DEFAULT_CPU_SET.with(|x| match x.clone().into_inner() {
+        Some(_) => {
+            panic!("Default cpu set of this thread has already been set")
+        }
+        None => x.set(Some(set)),
+    });
+    Ok(())
+}
+
+fn clean_default_cpu() -> std::io::Result<()> {
+    DEFAULT_CPU_SET.with(|x| x.set(None));
+    Ok(())
+}
+#[derive(Debug)]
+pub(crate) struct CoreAffinityGuard {
+    phantom: PhantomData<Rc<()>>,
+}
+
+impl CoreAffinityGuard {
+    pub fn new() -> std::io::Result<Self> {
+        set_default_cpu()?;
+        Ok(Self {
+            phantom: Default::default(),
+        })
     }
-    let pid = nix::unistd::Pid::from_raw(0);
-    to_io_error!(nix::sched::sched_setaffinity(pid, &cpuset)).map_err(Into::into)
+}
+impl Drop for CoreAffinityGuard {
+    fn drop(&mut self) {
+        clean_default_cpu().unwrap();
+    }
 }

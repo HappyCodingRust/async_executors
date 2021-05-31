@@ -1,4 +1,4 @@
-use crate::Glommio;
+use crate::{CoreAffinityGuard, Glommio};
 use crate::{
     JoinHandle, LocalSpawn, LocalSpawnHandle, LocalSpawnHandleStatic, LocalSpawnStatic, Spawn,
     SpawnError, SpawnHandle,
@@ -68,8 +68,17 @@ impl GlommioTpBuilder {
             }
         }
         let mut join_handles = vec![];
-        for (t, e) in thread_pool.into_iter().zip(workers.into_iter()) {
-            let join_handle = t.spawn(move || async move { e.run().await }).unwrap();
+        for (id, (t, e)) in thread_pool.into_iter().zip(workers.into_iter()).enumerate() {
+            let name = format!("{}-{}", self.name, id);
+
+            let join_handle = std::thread::Builder::new()
+                .name(name)
+                .spawn(move || {
+                    let guard = CoreAffinityGuard::new().unwrap();
+                    t.make().unwrap().run(async move { e.run().await });
+                    drop(guard);
+                })
+                .unwrap();
             join_handles.push(join_handle);
         }
         Ok(GlommioTp::new(join_handles, global_injector, dedicated_tx))
