@@ -23,13 +23,6 @@ pub trait AsyncJoinHandle: Future {
     fn detach(self)
     where
         Self: Sized;
-
-    fn join(self) -> Self::Output
-    where
-        Self: Sized,
-    {
-        futures_executor::block_on(self)
-    }
 }
 
 impl<T: 'static> AsyncJoinHandle for RemoteHandle<T> {

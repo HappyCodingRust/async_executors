@@ -69,11 +69,11 @@ tokio_tp = ["tokio/rt-multi-thread"]
 bindgen = ["wasm-bindgen-futures"]
 # Enabled the glommio executor support. Glommio is a cooperative thread-per-core model. Requires a very
 # new linux kernel(5.8+) This includes a current_thread and a thread_pool(with work-stealing algorithm) implementation
-glommio = ["glommio_crate", "crossbeam"]
+glommio = ["glommio_crate", "crossbeam", "futures-executor"]
 # Add support for the futures LocalPool to SpawnHandle and LocalSpawnHandle
 # only makes sense in conjunction with spawn_handle.
 
-localpool = [] #["futures-executor"]
+localpool = ["futures-executor"]
 # Add support for the futures ThreadPool to SpawnHandle and LocalSpawnHandle
 # only makes sense in conjunction with spawn_handle.
 threadpool = ["futures-executor/thread-pool"]
@@ -100,6 +100,7 @@ features = ["channel"]
 
 [dependencies.futures-executor]
 version = "^0.3"
+optional = true
 
 [dependencies.futures-channel]
 version = "^0.3"
