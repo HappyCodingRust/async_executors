@@ -14,7 +14,7 @@ fn main() {
     // Of course you can set other configuration on the builder before.
     //
     let builder = GlommioTpBuilder::new(2);
-    let exec = builder.build().unwrap();
+    let exec = Arc::new(builder.build().unwrap());
     let exec_ = Arc::clone(&exec);
     let program = async {
         let (tx, rx) = oneshot::channel();

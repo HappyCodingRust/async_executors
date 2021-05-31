@@ -37,7 +37,7 @@ impl GlommioTpBuilder {
     }
 
     /// block on the given future
-    pub fn build(&self) -> Result<Arc<GlommioTp>, std::io::Error> {
+    pub fn build(&self) -> Result<GlommioTp, std::io::Error> {
         let range = self.pin_to_cpu.clone().unwrap_or(0..self.threads);
         let mut thread_pool = vec![];
         let mut workers = vec![];
@@ -72,11 +72,7 @@ impl GlommioTpBuilder {
             let join_handle = t.spawn(move || async move { e.run().await }).unwrap();
             join_handles.push(join_handle);
         }
-        Ok(Arc::new(GlommioTp::new(
-            join_handles,
-            global_injector,
-            dedicated_tx,
-        )))
+        Ok(GlommioTp::new(join_handles, global_injector, dedicated_tx))
     }
 }
 
