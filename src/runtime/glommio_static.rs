@@ -61,12 +61,42 @@ impl YieldNowStatic for Glommio {
         Box::pin(Task::<()>::yield_if_needed())
     }
 }
+
 impl SpawnBlockingStatic for Glommio {
     fn spawn_blocking<T: Send + 'static>(
         func: impl FnOnce() -> T + Send + 'static,
     ) -> Result<JoinHandle<T>, SpawnError> {
         let (remote, handle) = async { func() }.remote_handle();
-        std::thread::spawn(move || futures_executor::block_on(remote));
+        std::thread::spawn(move || {
+            bind_to_cpu_set(None).expect("Unbind core affinity error");
+            futures_executor::block_on(remote)
+        });
         Ok(handle.into())
     }
+}
+
+macro_rules! to_io_error {
+    ($error:expr) => {{
+        match $error {
+            Ok(x) => Ok(x),
+            Err(nix::Error::Sys(_)) => Err(std::io::Error::last_os_error()),
+            Err(nix::Error::InvalidUtf8) => {
+                Err(std::io::Error::from(std::io::ErrorKind::InvalidInput))
+            }
+            Err(nix::Error::InvalidPath) => {
+                Err(std::io::Error::from(std::io::ErrorKind::InvalidInput))
+            }
+            Err(nix::Error::UnsupportedOperation) => {
+                Err(std::io::Error::from(std::io::ErrorKind::Other))
+            }
+        }
+    }};
+}
+fn bind_to_cpu_set(cpus: impl IntoIterator<Item = usize>) -> std::io::Result<()> {
+    let mut cpuset = nix::sched::CpuSet::new();
+    for cpu in cpus {
+        to_io_error!(&cpuset.set(cpu))?;
+    }
+    let pid = nix::unistd::Pid::from_raw(0);
+    to_io_error!(nix::sched::sched_setaffinity(pid, &cpuset)).map_err(Into::into)
 }
