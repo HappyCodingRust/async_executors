@@ -12,7 +12,7 @@ use std::marker::PhantomData;
 use std::rc::Rc;
 
 /// A simple glommio runtime builder
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Glommio;
 
 impl LocalSpawnStatic for Glommio {
