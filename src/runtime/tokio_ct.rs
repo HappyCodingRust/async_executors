@@ -1,8 +1,4 @@
-use crate::{
-    BlockOn, LocalSpawn, LocalSpawnHandleStatic, Spawn, SpawnBlocking, SpawnError,
-    SpawnHandleStatic, TokioJoinHandle, YieldNowStatic,
-};
-use futures_util::future::BoxFuture;
+use crate::{BlockOn, LocalSpawn, Spawn, SpawnBlocking, SpawnError, TokioJoinHandle};
 
 use std::rc::Rc;
 use {
@@ -136,18 +132,6 @@ impl<Out: 'static + Send> SpawnHandle<Out> for TokioCt {
         Ok(TokioJoinHandle::new(self.exec.spawn(future)).into())
     }
 }
-#[derive(Debug, Copy, Clone)]
-struct Tokio;
-
-impl SpawnHandleStatic for Tokio {
-    fn spawn_handle<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
-    where
-        Fut: Future<Output = Output> + Send + 'static,
-        Output: 'static + Send,
-    {
-        Ok(TokioJoinHandle::new(tokio::task::spawn(future)).into())
-    }
-}
 
 impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
     fn spawn_handle_local_obj(
@@ -155,22 +139,6 @@ impl<Out: 'static> LocalSpawnHandle<Out> for TokioCt {
         future: LocalFutureObj<'static, Out>,
     ) -> Result<JoinHandle<Out>, SpawnError> {
         Ok(TokioJoinHandle::new(self.local.spawn_local(future)).into())
-    }
-}
-
-impl LocalSpawnHandleStatic for Tokio {
-    fn spawn_handle_local<Output, Fut>(future: Fut) -> Result<JoinHandle<Output>, SpawnError>
-    where
-        Fut: Future<Output = Output> + 'static,
-        Output: 'static,
-    {
-        Ok(TokioJoinHandle::new(tokio::task::spawn_local(future)).into())
-    }
-}
-
-impl YieldNowStatic for Tokio {
-    fn yield_now() -> BoxFuture<'static, ()> {
-        Box::pin(tokio::task::yield_now())
     }
 }
 impl<T: Send + 'static> SpawnBlocking<T> for TokioCt {

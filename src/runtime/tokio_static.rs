@@ -5,7 +5,7 @@ use crate::{
 use futures_util::future::BoxFuture;
 use std::future::Future;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Default, Clone)]
 pub struct Tokio;
 
 impl SpawnStatic for Tokio {
